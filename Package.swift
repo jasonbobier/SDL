@@ -48,6 +48,7 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/swiftlang/swift-subprocess", from: "1.0.0"),
+		.package(url: "https://github.com/apple/swift-system", from: "1.8.1"),
 	],
 	targets: [
 
@@ -355,6 +356,7 @@ let package = Package(
 		.sdlTestExecutable(name: "testthread"),
 		.sdlTestExecutable(name: "testtimer"),
 		.sdlTestExecutable(name: "testver"),
+		.sdlTestExecutable(name: "testyuv", sources: ["testyuv_cvt.c", "testutils.c"]),
 		.sdlTestExecutable(name: "torturethread"),
 
 
@@ -365,6 +367,7 @@ let package = Package(
 			dependencies: [
 				"SimpleDirectMediaLayer",
 				.product(name: "Subprocess", package: "swift-subprocess"),
+				.product(name: "SystemPackage", package: "swift-system"),
 			],
 			path: "swift/Tests/SimpleDirectMediaLayerTests",
 		),
