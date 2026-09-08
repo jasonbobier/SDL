@@ -37,15 +37,12 @@ struct `SDL Tests` {
 		try await Self.runTest(name: "testatomic", timeout: .seconds(20))
 	}
 
-	@Suite(.serialized)
-	struct `testautomation Tests` {
-		@Test func testautomation() async throws {
-			try await runTest(name: "testautomation", timeout: .seconds(120))
-		}
+	@Test func testautomation() async throws {
+		try await Self.runTest(name: "testautomation", timeout: .seconds(120))
+	}
 
-		@Test func `testautomation-no-simd`() async throws {
-			try await runTest(name: "testautomation", environment: defaultEnvironment.updating(["SDL_CPU_FEATURE_MASK": "-all"]), timeout: .seconds(120))
-		}
+	@Test func `testautomation-no-simd`() async throws {
+		try await Self.runTest(name: "testautomation", environment: Self.defaultEnvironment.updating(["SDL_CPU_FEATURE_MASK": "-all"]), timeout: .seconds(120))
 	}
 
 	@Test func testbounds() async throws {
@@ -68,14 +65,12 @@ struct `SDL Tests` {
 		try await Self.runTest(name: "testlocale")
 	}
 
-	struct `testplatform Tests` {
-		@Test func testplatform() async throws {
-			try await runTest(name: "testplatform")
-		}
+	@Test func testplatform() async throws {
+		try await Self.runTest(name: "testplatform")
+	}
 
-		@Test func `testplatform-no-simd`() async throws {
-			try await runTest(name: "testplatform", environment: defaultEnvironment.updating(["SDL_CPU_FEATURE_MASK": "-all"]))
-		}
+	@Test func `testplatform-no-simd`() async throws {
+		try await Self.runTest(name: "testplatform", environment: Self.defaultEnvironment.updating(["SDL_CPU_FEATURE_MASK": "-all"]))
 	}
 
 	@Test func testpower() async throws {
@@ -83,7 +78,7 @@ struct `SDL Tests` {
 	}
 
 	@Test func testprocess() async throws {
-		try await Self.runTest(name: "testprocess", arguments: [productsDirectory.appending(path: "childprocess").path(percentEncoded: false)])
+		try await Self.runTest(name: "testprocess", arguments: [productsDirectoryURL.appending(path: "childprocess").path(percentEncoded: false)])
 	}
 
 	@Test func testqsort() async throws {
@@ -123,40 +118,74 @@ struct `SDL Tests` {
 	}
 
 	static func runTest(name: String, arguments: Arguments = [], environment: Environment = defaultEnvironment, timeout: Duration = defaultTimeout, sourceLocation: SourceLocation = #_sourceLocation) async throws {
-		let productsDirectoryFilePath = FilePath(productsDirectory)!
+		let productsDirectoryFilePath = FilePath(productsDirectoryURL)!
 
 		await #expect(throws: Never.self, sourceLocation: sourceLocation) {
-			let result = try await withThrowingTaskGroup { group in
-				group.addTask {
-					try await run(
-						.path(productsDirectoryFilePath.appending(name)),
-						arguments: arguments,
-						environment: environment,
-						workingDirectory: productsDirectoryFilePath,
-						output: .discarded,
-						error: .string(limit: 4096*1024, encoding: UTF8.self)
-					)
-				}
-				group.addTask {
-					try await Task.sleep(for: timeout)
-					throw SDLTestingError.timedOut
-				}
+			let temporaryDirectoryURL = URL.temporaryDirectory.appending(path: UUID().uuidString)
 
-				let result = try await group.next()
-				group.cancelAll()
-
-				return result!
+			try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+			defer {
+				try? FileManager.default.removeItem(at: temporaryDirectoryURL)
 			}
 
-			guard result.terminationStatus == .exited(0) else {
-				throw SDLTestingError.error(terminationStatus: result.terminationStatus, standardError: result.standardError)
+			let logURL = temporaryDirectoryURL.appending(path: "\(name).log")
+			let fd = try FileDescriptor.open(FilePath(logURL.path(percentEncoded: false)), .writeOnly, options: [.create, .exclusiveCreate], permissions: .ownerReadWrite)
+
+			do {
+				let result = try await withThrowingTaskGroup { group in
+					group.addTask {
+						try await run(
+							.path(productsDirectoryFilePath.appending(name)),
+							arguments: arguments,
+							environment: environment,
+							workingDirectory: .init(temporaryDirectoryURL),
+							output: .fileDescriptor(fd, closeAfterSpawningProcess: true),
+							error: .combinedWithOutput
+						)
+					}
+					group.addTask {
+						try await Task.sleep(for: timeout)
+						throw SDLTestingError.timedOut(timeout: timeout)
+					}
+
+					let result = try await group.next()
+					group.cancelAll()
+
+					return result!
+				}
+
+				guard result.terminationStatus == .exited(0) else {
+					throw await SDLTestingError.error(terminationStatus: result.terminationStatus, output: tailLines(of: logURL))
+				}
+			} catch {
+				if let workingDirectoryAttachment = try? await Attachment(contentsOf: temporaryDirectoryURL, named: "working_directory") {
+					Attachment.record(workingDirectoryAttachment)
+				}
+				throw error
 			}
 		}
+	}
+
+	static func tailLines(of url: URL, maxLines: Int = 500) async -> String {
+		var lines: [String] = []
+
+		lines.reserveCapacity(maxLines)
+		do {
+			for try await line in url.lines {
+				if lines.count == maxLines {
+					lines.removeFirst()
+				}
+				lines.append(line)
+			}
+		} catch {
+		}
+
+		return lines.joined(separator: "\n")
 	}
 }
 
 private final class BundleFinder { }
-private let productsDirectory = Bundle(for: BundleFinder.self).bundleURL.deletingLastPathComponent()
+private let productsDirectoryURL = Bundle(for: BundleFinder.self).bundleURL.deletingLastPathComponent()
 
 struct PretestTrait: SuiteTrait & TestScoping {
 	func provideScope(for test: Test, testCase: Test.Case?, performing function: () async throws -> Void) async throws {
@@ -165,10 +194,25 @@ struct PretestTrait: SuiteTrait & TestScoping {
 	}
 
 	func pretest() async throws {
-		let result = try await run(.path(.init(productsDirectory)!.appending("pretest")), output: .discarded, error: .string(limit: 4096, encoding: UTF8.self))
+		let temporaryDirectoryURL = URL.temporaryDirectory.appending(path: UUID().uuidString)
+
+		try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+		defer {
+			try? FileManager.default.removeItem(at: temporaryDirectoryURL)
+		}
+
+		let logURL = temporaryDirectoryURL.appending(path: "pretest.log")
+		let fd = try FileDescriptor.open(FilePath(logURL.path(percentEncoded: false)), .writeOnly, options: [.create, .exclusiveCreate], permissions: .ownerReadWrite)
+
+		let result = try await run(
+			.path(.init(productsDirectoryURL)!.appending("pretest")),
+			workingDirectory: .init(temporaryDirectoryURL),
+			output: .fileDescriptor(fd, closeAfterSpawningProcess: true),
+			error: .combinedWithOutput
+		)
 
 		guard result.terminationStatus == .exited(0) else {
-			throw SDLTestingError.pretestFailed(standardError: result.standardError)
+			throw SDLTestingError.pretestFailed(output: (try? String(contentsOf: logURL, encoding: .utf8)) ?? "Unable to read \(logURL)")
 		}
 	}
 }
@@ -180,9 +224,9 @@ extension SuiteTrait where Self == PretestTrait {
 }
 
 enum SDLTestingError: LocalizedError, CustomStringConvertible {
-	case pretestFailed(standardError: String)
-	case error(terminationStatus: TerminationStatus, standardError: String)
-	case timedOut
+	case pretestFailed(output: String)
+	case error(terminationStatus: TerminationStatus, output: String)
+	case timedOut(timeout: Duration)
 
 	var errorDescription: String? {
 		description
@@ -190,14 +234,14 @@ enum SDLTestingError: LocalizedError, CustomStringConvertible {
 
 	var description: String {
 		switch self {
-			case .pretestFailed(let standardError):
-				"Error: pretest failed: \(standardError)"
+			case .pretestFailed(let output):
+				"Error: pretest failed: \(output)"
 
-			case .error(terminationStatus: let terminationStatus, standardError: let standardError):
-				"Error: (\(terminationStatus)) \(standardError)"
+			case .error(let terminationStatus, let output):
+				"Error: (\(terminationStatus)) \(output)"
 
-			case .timedOut:
-				"Error: timed out"
+			case .timedOut(let timeout):
+				"Error: timed out (\(timeout))"
 		}
 	}
 }
