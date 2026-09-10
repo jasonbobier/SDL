@@ -53,6 +53,10 @@ struct `SDL Tests` {
 		try await Self.runTest(name: "testerror")
 	}
 
+	@Test func testevdev() async throws {
+		try await Self.runTest(name: "testevdev")
+	}
+
 	@Test func testfile() async throws {
 		try await Self.runTest(name: "testfile")
 	}
@@ -145,7 +149,7 @@ struct `SDL Tests` {
 					}
 					group.addTask {
 						try await Task.sleep(for: timeout)
-						throw SDLTestingError.timedOut(timeout: timeout)
+						throw await SDLTestingError.timedOut(timeout: timeout, output: tailLines(of: logURL))
 					}
 
 					let result = try await group.next()
@@ -178,6 +182,7 @@ struct `SDL Tests` {
 				lines.append(line)
 			}
 		} catch {
+			lines.append("Unable to read output recorded at \(url.path(percentEncoded: false)): \(error)")
 		}
 
 		return lines.joined(separator: "\n")
@@ -226,7 +231,7 @@ extension SuiteTrait where Self == PretestTrait {
 enum SDLTestingError: LocalizedError, CustomStringConvertible {
 	case pretestFailed(output: String)
 	case error(terminationStatus: TerminationStatus, output: String)
-	case timedOut(timeout: Duration)
+	case timedOut(timeout: Duration, output: String)
 
 	var errorDescription: String? {
 		description
@@ -238,10 +243,10 @@ enum SDLTestingError: LocalizedError, CustomStringConvertible {
 				"Error: pretest failed: \(output)"
 
 			case .error(let terminationStatus, let output):
-				"Error: (\(terminationStatus)) \(output)"
+				"Error: (\(terminationStatus)) output:\n\(output)"
 
-			case .timedOut(let timeout):
-				"Error: timed out (\(timeout))"
+			case .timedOut(let timeout, let output):
+				"Error: timed out (\(timeout)) output:\n\(output)"
 		}
 	}
 }

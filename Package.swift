@@ -1,34 +1,54 @@
 // swift-tools-version: 6.3;(experimentalCGen)
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
+import Foundation
 import PackageDescription
 
 extension Target {
-	static func sdlTestExecutable(name: String, dependencies: [Dependency] = [], sources: [String] = [], cSettings: [CSetting] = []) -> Target {
+	static func sdlTestExecutable(name: String, sources: [String]? = nil, additionalDependencies: [Dependency] = [], additionalSources: [String] = [], additionalCSettings: [CSetting] = [], additionalLinkerSettings: [LinkerSetting] = []) -> Target {
 		.executableTarget(
 			name: name,
 			dependencies: [
 				"SimpleDirectMediaLayer",
 				"SimpleDirectMediaLayerTest",
-			] + dependencies,
+			] + additionalDependencies,
 			path: "test",
-			sources: [
-				name + ".c"
-			] + sources,
+			sources: (sources ?? [name + ".c"]) + additionalSources,
 			cSettings: [
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
-			] + cSettings,
+				.define("HAVE_BUILD_CONFIG"),
+				.define("HAVE_OPENGL"),
+				.headerSearchPath("../src/video/khronos"),
+			] + additionalCSettings,
+			linkerSettings: additionalLinkerSettings,
+		)
+	}
+
+	static func sdlExampleExecutable(name: String, sources: [String]) -> Target {
+		.executableTarget(
+			name: name,
+			dependencies: [
+				"SimpleDirectMediaLayer"
+			],
+			path: "examples",
+			sources: sources,
 		)
 	}
 }
 
+let buildDependentSettings: [CSetting] = [
+	.headerSearchPath("../src"),
+	.headerSearchPath("../include/build_config"),
+]
 let excludeList = [
 	"android-project",
 	"build-scripts",
 	"cmake",
 	"docs",
 	"examples",
+	"src/gpu/metal/Metal_Blit.metal",
 	"src/hidapi/testgui",
+	"src/render/metal/SDL_shaders_metal.metal",
 	"swift",
 	"test",
 	"VisualC",
@@ -58,9 +78,9 @@ let package = Package(
 		.target(
 			name: "SimpleDirectMediaLayer",
 			dependencies: [
-				.byNameItem(name: "SDL_Internal_apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
-				.byNameItem(name: "SDL_Internal_macOS", condition: .when(platforms: [.macOS])),
-				.byNameItem(name: "SDL_Internal_posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
+				.byNameItem(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
+				.byNameItem(name: "macOS", condition: .when(platforms: [.macOS])),
+				.byNameItem(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
 			],
 			path: ".",
 			exclude: excludeList,
@@ -195,7 +215,8 @@ let package = Package(
 				.headerSearchPath("include/build_config"),
 				.headerSearchPath("src"),
 				.headerSearchPath("src/video/khronos"),
-				.unsafeFlags(["-fno-modules", "-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
+				.unsafeFlags(["-fno-modules"]),
+				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
 			],
 			plugins: [
 				"BuildSDLRevisionHeaderPlugin",
@@ -219,7 +240,7 @@ let package = Package(
 		// MARK: - Private Platform Libraries
 
 		.target(
-			name: "SDL_Internal_apple",
+			name: "apple",
 			path: ".",
 			exclude: excludeList,
 			sources: [
@@ -229,7 +250,7 @@ let package = Package(
 				"src/joystick/apple",
 				"src/render/metal/SDL_render_metal.m",
 			],
-			publicHeadersPath: "swift/Sources/SDL_Internal_apple/include",
+			publicHeadersPath: "swift/Sources/apple/include",
 			cSettings: [
 				.headerSearchPath("include"),
 				.headerSearchPath("include/build_config"),
@@ -240,7 +261,7 @@ let package = Package(
 		),
 
 		.target(
-			name: "SDL_Internal_macOS",
+			name: "macOS",
 			path: ".",
 			exclude: excludeList,
 			sources: [
@@ -255,7 +276,7 @@ let package = Package(
 				"src/tray/cocoa",
 				"src/video/cocoa",
 			],
-			publicHeadersPath: "swift/Sources/SDL_Internal_macOS/include",
+			publicHeadersPath: "swift/Sources/macOS/include",
 			cSettings: [
 				.headerSearchPath("include"),
 				.headerSearchPath("include/build_config"),
@@ -286,7 +307,7 @@ let package = Package(
 		),
 
 		.target(
-			name: "SDL_Internal_posix",
+			name: "posix",
 			path: ".",
 			exclude: excludeList,
 			sources: [
@@ -296,7 +317,7 @@ let package = Package(
 				"src/time/unix",
 				"src/timer/unix",
 			],
-			publicHeadersPath: "swift/Sources/SDL_Internal_posix/include",
+			publicHeadersPath: "swift/Sources/posix/include",
 			cSettings: [
 				.headerSearchPath("include"),
 				.headerSearchPath("include/build_config"),
@@ -305,14 +326,60 @@ let package = Package(
 			],
 		),
 
+		.target(
+			name: "BundleHelpers",
+			path: ".",
+			exclude: excludeList.filter { ($0 != "swift") },
+			sources: [
+				"swift/Sources/BundleHelpers",
+			],
+		),
 
-		// MARK: - SDL Test Executables
+		.target(
+			name: "testutils",
+			dependencies: [
+				"TestResources"
+			],
+			path: ".",
+			exclude: excludeList.filter { $0 != "test" },
+			sources: [
+				"test/testutils.c",
+			],
+			publicHeadersPath: "swift/Sources/testutils/include",
+			cSettings: [
+				.headerSearchPath("include"),
+			],
+		),
 
-		.sdlTestExecutable(name: "checkkeys"),
+		.target(
+			name: "TestResources",
+			dependencies: [
+				"BundleHelpers",
+			],
+			path: ".",
+			exclude: excludeList.filter { ($0 != "test") && ($0 != "swift") },
+			sources: [
+				"swift/Sources/TestResources",
+			],
+			resources: {
+				let testDirectory = URL(filePath: Context.packageDirectory).appending(path: "test")
+				let urls = (try? FileManager.default.contentsOfDirectory(at: testDirectory, includingPropertiesForKeys: nil)) ?? []
+
+				return urls
+					.filter { ["png", "wav", "csv", "hex"].contains($0.pathExtension) || ["moose.dat", "utf8.txt"].contains($0.lastPathComponent) }
+					.map { $0.lastPathComponent }
+					.sorted()
+					.map { .copy("test/\($0)") }
+			}()
+		),
+
+
+		// MARK: - SDL Tests Executables
+
 		.sdlTestExecutable(name: "childprocess"),
 		.sdlTestExecutable(name: "pretest"),
 		.sdlTestExecutable(name: "testatomic"),
-		.sdlTestExecutable(name: "testautomation", sources: [
+		.sdlTestExecutable(name: "testautomation", additionalSources: [
 			"testautomation_audio.c",
 			"testautomation_blit.c",
 			"testautomation_clipboard.c",
@@ -340,9 +407,10 @@ let package = Package(
 			"testautomation_time.c",
 			"testautomation_timer.c",
 			"testautomation_video.c",
-		]),
+		], additionalCSettings: buildDependentSettings),
 		.sdlTestExecutable(name: "testbounds"),
 		.sdlTestExecutable(name: "testerror"),
+		.sdlTestExecutable(name: "testevdev", additionalCSettings: buildDependentSettings),
 		.sdlTestExecutable(name: "testfile"),
 		.sdlTestExecutable(name: "testfilesystem"),
 		.sdlTestExecutable(name: "testlocale"),
@@ -356,11 +424,94 @@ let package = Package(
 		.sdlTestExecutable(name: "testthread"),
 		.sdlTestExecutable(name: "testtimer"),
 		.sdlTestExecutable(name: "testver"),
-		.sdlTestExecutable(name: "testyuv", sources: ["testyuv_cvt.c", "testutils.c"]),
+		.sdlTestExecutable(name: "testyuv", additionalDependencies: ["testutils"], additionalSources: ["testyuv_cvt.c"]),
 		.sdlTestExecutable(name: "torturethread"),
 
 
-		// MARK: - SDL Test
+		// MARK: - Other SDL Test Executables
+
+		.sdlTestExecutable(name: "checkkeys"),
+		.sdlTestExecutable(name: "loopwave", additionalDependencies: ["testutils"]),
+		.sdlTestExecutable(name: "testasyncio", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testaudio", additionalDependencies: ["testutils"]),
+		.sdlTestExecutable(name: "testaudiohotplug", additionalDependencies: ["testutils"]),
+		.sdlTestExecutable(name: "testaudioinfo"),
+		.sdlTestExecutable(name: "testaudiorecording"),
+		.sdlTestExecutable(name: "testaudiostreamdynamicresample", additionalDependencies: ["testutils"]),
+		.sdlTestExecutable(name: "testcamera"),
+		.sdlTestExecutable(name: "testclipboard"),
+		.sdlTestExecutable(name: "testcolorspace"),
+		.sdlTestExecutable(name: "testcontroller", additionalDependencies: ["testutils"], additionalSources: ["gamepadutils.c"]),
+		.sdlTestExecutable(name: "testcustomcursor"),
+		.sdlTestExecutable(name: "testdescriptor", additionalCSettings: buildDependentSettings),
+		.sdlTestExecutable(name: "testdialog"),
+		.sdlTestExecutable(name: "testdisplayinfo"),
+		.sdlTestExecutable(name: "testdlopennote", additionalDependencies: ["testutils"]),
+		.sdlTestExecutable(name: "testdraw"),
+		.sdlTestExecutable(name: "testdrawchessboard"),
+		.sdlTestExecutable(name: "testdropfile"),
+//		.sdlTestExecutable(name: "testffmpeg", additionalSources: ["testffmpeg_vulkan.c"]),	// Requires FFmpeg > 5.1.3, can we #define around it?
+		.sdlTestExecutable(name: "testgeometry", additionalDependencies: ["testutils"]),
+		.sdlTestExecutable(name: "testgl", additionalLinkerSettings: [.linkedFramework("OpenGL")]),
+		.sdlTestExecutable(name: "testgles"),
+		.sdlTestExecutable(name: "testgles2"),
+		.sdlTestExecutable(name: "testgpu_simple_clear"),
+		.sdlTestExecutable(name: "testgpu_spinning_cube"),
+		.sdlTestExecutable(name: "testgpu_spinning_cube_xr"),
+		.sdlTestExecutable(name: "testgpurender_effects", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testgpurender_msdf", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testhaptic"),
+		.sdlTestExecutable(name: "testhittesting"),
+		.sdlTestExecutable(name: "testhotplug"),
+		.sdlTestExecutable(name: "testiconv", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testime", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testintersections"),
+		.sdlTestExecutable(name: "testkeys"),
+		.sdlTestExecutable(name: "testloadso"),
+		.sdlTestExecutable(name: "testlock"),
+		.sdlTestExecutable(name: "testmanymouse"),
+		.sdlTestExecutable(name: "testmessage"),
+		.sdlTestExecutable(name: "testmodal"),
+		.sdlTestExecutable(name: "testmouse"),
+		.sdlTestExecutable(name: "testmultiaudio", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(
+			name: "testnative",
+			additionalDependencies: ["testutils", "TestResources"],
+			additionalSources: ["testnativecocoa.m", "testnativex11.c"],
+			additionalCSettings: buildDependentSettings + [.unsafeFlags(["-fno-objc-arc"])],
+		),
+		.sdlTestExecutable(name: "testnotification", additionalDependencies: ["TestResources"]),
+		.sdlTestExecutable(name: "testoffscreen"),
+		.sdlTestExecutable(name: "testoverlay", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testpalette"),
+		.sdlTestExecutable(name: "testpen"),
+		.sdlTestExecutable(name: "testpopup"),		// Has a main thread issue!!!!
+		.sdlTestExecutable(name: "testrelative"),
+		.sdlTestExecutable(name: "testrendercopyex", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testrendertarget", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testresample", additionalDependencies: ["TestResources"]),
+		.sdlTestExecutable(name: "testrotate"),
+		.sdlTestExecutable(name: "testrumble"),
+		.sdlTestExecutable(name: "testscale", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testsensor"),
+		.sdlTestExecutable(name: "testshader", additionalDependencies: ["testutils", "TestResources"], additionalLinkerSettings: [.linkedFramework("OpenGL")]),
+		.sdlTestExecutable(name: "testshape", additionalDependencies: ["TestResources"]),
+		.sdlTestExecutable(name: "testsoftwaretransparent"),
+		.sdlTestExecutable(name: "testsprite", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testspritecxx", sources: ["testsprite.cpp"], additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testspriteminimal"),
+		.sdlTestExecutable(name: "testspritesurface"),
+		.sdlTestExecutable(name: "testsurround"),
+		.sdlTestExecutable(name: "testtime"),
+		.sdlTestExecutable(name: "testtray", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testurl"),
+		.sdlTestExecutable(name: "testviewport", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testvulkan"),
+//		.sdlTestExecutable(name: "testwaylandcustom"),	// Wayland only, generated source, needs pkg-config wayland-client, I think needed for Linux, can we #define around it?
+		.sdlTestExecutable(name: "testwm"),
+
+
+		// MARK: - SimpleDirectMediaLayerTests
 
 		.testTarget(
 			name: "SimpleDirectMediaLayerTests",
@@ -375,41 +526,44 @@ let package = Package(
 
 		// MARK: - SDL Example Executables
 
-		// examples/demo/01-snake
-		.executableTarget(
-			name: "examples_demo_01-snake",
-			dependencies: [
-				"SimpleDirectMediaLayer"
-			],
-			path: "examples/demo/01-snake",
-		),
-
-		// examples/demo/02-woodeneye-008
-		.executableTarget(
-			name: "examples_demo_02-woodeneye-008",
-			dependencies: [
-				"SimpleDirectMediaLayer"
-			],
-			path: "examples/demo/02-woodeneye-008",
-		),
-
-		// examples/demo/03-infinite-monkeys
-		.executableTarget(
-			name: "examples_demo_03-infinite-monkeys",
-			dependencies: [
-				"SimpleDirectMediaLayer"
-			],
-			path: "examples/demo/03-infinite-monkeys",
-		),
-
-		// examples/demo/04-bytepusher
-		.executableTarget(
-			name: "examples_demo_04-bytepusher",
-			dependencies: [
-				"SimpleDirectMediaLayer"
-			],
-			path: "examples/demo/04-bytepusher",
-		),
+//		.sdlExampleExecutable(name: "asyncio-load-bitmaps", sources: ["asyncio/01-load-bitmaps/load-bitmaps.c"]),                          // dataFiles: sample.png gamepad_front.png speaker.png icon2x.png
+//		.sdlExampleExecutable(name: "audio-load-wav", sources: ["audio/03-load-wav/load-wav.c"]),                                          // dataFiles: sample.wav
+//		.sdlExampleExecutable(name: "audio-multiple-streams", sources: ["audio/04-multiple-streams/multiple-streams.c"]),                  // dataFiles: sample.wav sword.wav
+		.sdlExampleExecutable(name: "audio-planar-data", sources: ["audio/05-planar-data/planar-data.c"]),
+		.sdlExampleExecutable(name: "audio-simple-playback", sources: ["audio/01-simple-playback/simple-playback.c"]),
+		.sdlExampleExecutable(name: "audio-simple-playback-callback", sources: ["audio/02-simple-playback-callback/simple-playback-callback.c"]),
+		.sdlExampleExecutable(name: "camera-read-and-draw", sources: ["camera/01-read-and-draw/read-and-draw.c"]),
+		.sdlExampleExecutable(name: "demo-snake", sources: ["demo/01-snake/snake.c"]),
+		.sdlExampleExecutable(name: "demo-woodeneye-008", sources: ["demo/02-woodeneye-008/woodeneye-008.c"]),
+		.sdlExampleExecutable(name: "demo-infinite-monkeys", sources: ["demo/03-infinite-monkeys/infinite-monkeys.c"]),
+		.sdlExampleExecutable(name: "demo-bytepusher", sources: ["demo/04-bytepusher/bytepusher.c"]),
+		.sdlExampleExecutable(name: "input-gamepad-events", sources: ["input/04-gamepad-events/gamepad-events.c"]),
+//		.sdlExampleExecutable(name: "input-gamepad-polling", sources: ["input/03-gamepad-polling/gamepad-polling.c"]),                     // dataFiles: gamepad_front.png
+		.sdlExampleExecutable(name: "input-gamepad-rumble", sources: ["input/05-gamepad-rumble/gamepad-rumble.c"]),
+		.sdlExampleExecutable(name: "input-joystick-events", sources: ["input/02-joystick-events/joystick-events.c"]),
+		.sdlExampleExecutable(name: "input-joystick-polling", sources: ["input/01-joystick-polling/joystick-polling.c"]),
+		.sdlExampleExecutable(name: "misc-clipboard", sources: ["misc/02-clipboard/clipboard.c"]),
+		.sdlExampleExecutable(name: "misc-locale", sources: ["misc/03-locale/locale.c"]),
+		.sdlExampleExecutable(name: "misc-power", sources: ["misc/01-power/power.c"]),
+		.sdlExampleExecutable(name: "pen-drawing-lines", sources: ["pen/01-drawing-lines/drawing-lines.c"]),
+//		.sdlExampleExecutable(name: "renderer-affine-textures", sources: ["renderer/19-affine-textures/affine-textures.c"]),               // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-blending", sources: ["renderer/20-blending/blending.c"]),
+		.sdlExampleExecutable(name: "renderer-clear", sources: ["renderer/01-clear/clear.c"]),
+//		.sdlExampleExecutable(name: "renderer-cliprect", sources: ["renderer/15-cliprect/cliprect.c"]),                                    // dataFiles: sample.png
+//		.sdlExampleExecutable(name: "renderer-color-mods", sources: ["renderer/11-color-mods/color-mods.c"]),                              // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-debug-text", sources: ["renderer/18-debug-text/debug-text.c"]),
+//		.sdlExampleExecutable(name: "renderer-geometry", sources: ["renderer/10-geometry/geometry.c"]),                                    // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-lines", sources: ["renderer/03-lines/lines.c"]),
+		.sdlExampleExecutable(name: "renderer-points", sources: ["renderer/04-points/points.c"]),
+		.sdlExampleExecutable(name: "renderer-primitives", sources: ["renderer/02-primitives/primitives.c"]),
+//		.sdlExampleExecutable(name: "renderer-read-pixels", sources: ["renderer/17-read-pixels/read-pixels.c"]),                           // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-rectangles", sources: ["renderer/05-rectangles/rectangles.c"]),
+//		.sdlExampleExecutable(name: "renderer-rotating-textures", sources: ["renderer/08-rotating-textures/rotating-textures.c"]),         // dataFiles: sample.png
+//		.sdlExampleExecutable(name: "renderer-scaling-textures", sources: ["renderer/09-scaling-textures/scaling-textures.c"]),            // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-streaming-textures", sources: ["renderer/07-streaming-textures/streaming-textures.c"]),
+//		.sdlExampleExecutable(name: "renderer-textures", sources: ["renderer/06-textures/textures.c"]),                                    // dataFiles: sample.png
+//		.sdlExampleExecutable(name: "renderer-viewport", sources: ["renderer/14-viewport/viewport.c"]),                                    // dataFiles: sample.png
+		.sdlExampleExecutable(name: "storage-user", sources: ["storage/01-user/user.c"]),
 
 
 		// MARK: - Build Plugins
