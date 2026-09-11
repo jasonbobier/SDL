@@ -24,12 +24,12 @@ extension Target {
 		)
 	}
 
-	static func sdlExampleExecutable(name: String, sources: [String]) -> Target {
+	static func sdlExampleExecutable(name: String, sources: [String], additionalDependencies: [Dependency] = []) -> Target {
 		.executableTarget(
 			name: name,
 			dependencies: [
 				"SimpleDirectMediaLayer"
-			],
+			] + additionalDependencies,
 			path: "examples",
 			sources: sources,
 		)
@@ -326,6 +326,9 @@ let package = Package(
 			],
 		),
 
+
+		// MARK: - Helper Libraries
+
 		.target(
 			name: "BundleHelpers",
 			path: ".",
@@ -349,28 +352,6 @@ let package = Package(
 			cSettings: [
 				.headerSearchPath("include"),
 			],
-		),
-
-		.target(
-			name: "TestResources",
-			dependencies: [
-				"BundleHelpers",
-			],
-			path: ".",
-			exclude: excludeList.filter { ($0 != "test") && ($0 != "swift") },
-			sources: [
-				"swift/Sources/TestResources",
-			],
-			resources: {
-				let testDirectory = URL(filePath: Context.packageDirectory).appending(path: "test")
-				let urls = (try? FileManager.default.contentsOfDirectory(at: testDirectory, includingPropertiesForKeys: nil)) ?? []
-
-				return urls
-					.filter { ["png", "wav", "csv", "hex"].contains($0.pathExtension) || ["moose.dat", "utf8.txt"].contains($0.lastPathComponent) }
-					.map { $0.lastPathComponent }
-					.sorted()
-					.map { .copy("test/\($0)") }
-			}()
 		),
 
 
@@ -429,6 +410,29 @@ let package = Package(
 
 
 		// MARK: - Other SDL Test Executables
+
+		// Provides the files used by the test executables
+		.target(
+			name: "TestResources",
+			dependencies: [
+				"BundleHelpers",
+			],
+			path: ".",
+			exclude: excludeList.filter { ($0 != "test") && ($0 != "swift") },
+			sources: [
+				"swift/Sources/TestResources",
+			],
+			resources: {
+				let testDirectory = URL(filePath: Context.packageDirectory).appending(path: "test")
+				let urls = (try? FileManager.default.contentsOfDirectory(at: testDirectory, includingPropertiesForKeys: nil)) ?? []
+
+				return urls
+					.filter { ["png", "wav", "csv", "hex"].contains($0.pathExtension) || ["moose.dat", "utf8.txt"].contains($0.lastPathComponent) }
+					.map { $0.lastPathComponent }
+					.sorted()
+					.map { .copy("test/\($0)") }
+			}()
+		),
 
 		.sdlTestExecutable(name: "checkkeys"),
 		.sdlTestExecutable(name: "loopwave", additionalDependencies: ["testutils"]),
@@ -526,9 +530,30 @@ let package = Package(
 
 		// MARK: - SDL Example Executables
 
-//		.sdlExampleExecutable(name: "asyncio-load-bitmaps", sources: ["asyncio/01-load-bitmaps/load-bitmaps.c"]),                          // dataFiles: sample.png gamepad_front.png speaker.png icon2x.png
-//		.sdlExampleExecutable(name: "audio-load-wav", sources: ["audio/03-load-wav/load-wav.c"]),                                          // dataFiles: sample.wav
-//		.sdlExampleExecutable(name: "audio-multiple-streams", sources: ["audio/04-multiple-streams/multiple-streams.c"]),                  // dataFiles: sample.wav sword.wav
+		// Provides the files used by the example executables
+		.target(
+			name: "ExampleResources",
+			dependencies: [
+				"BundleHelpers",
+			],
+			path: ".",
+			exclude: excludeList.filter { ($0 != "test") && ($0 != "swift") },
+			sources: [
+				"swift/Sources/ExampleResources",
+			],
+			resources: [
+				.copy("test/sample.png"),
+				.copy("test/gamepad_front.png"),
+				.copy("test/speaker.png"),
+				.copy("test/icon2x.png"),
+				.copy("test/sample.wav"),
+				.copy("test/sword.wav"),
+			]
+		),
+
+		.sdlExampleExecutable(name: "asyncio-load-bitmaps", sources: ["asyncio/01-load-bitmaps/load-bitmaps.c"], additionalDependencies: ["ExampleResources"]),
+		.sdlExampleExecutable(name: "audio-load-wav", sources: ["audio/03-load-wav/load-wav.c"], additionalDependencies: ["ExampleResources"]),
+		.sdlExampleExecutable(name: "audio-multiple-streams", sources: ["audio/04-multiple-streams/multiple-streams.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "audio-planar-data", sources: ["audio/05-planar-data/planar-data.c"]),
 		.sdlExampleExecutable(name: "audio-simple-playback", sources: ["audio/01-simple-playback/simple-playback.c"]),
 		.sdlExampleExecutable(name: "audio-simple-playback-callback", sources: ["audio/02-simple-playback-callback/simple-playback-callback.c"]),
@@ -538,7 +563,7 @@ let package = Package(
 		.sdlExampleExecutable(name: "demo-infinite-monkeys", sources: ["demo/03-infinite-monkeys/infinite-monkeys.c"]),
 		.sdlExampleExecutable(name: "demo-bytepusher", sources: ["demo/04-bytepusher/bytepusher.c"]),
 		.sdlExampleExecutable(name: "input-gamepad-events", sources: ["input/04-gamepad-events/gamepad-events.c"]),
-//		.sdlExampleExecutable(name: "input-gamepad-polling", sources: ["input/03-gamepad-polling/gamepad-polling.c"]),                     // dataFiles: gamepad_front.png
+		.sdlExampleExecutable(name: "input-gamepad-polling", sources: ["input/03-gamepad-polling/gamepad-polling.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "input-gamepad-rumble", sources: ["input/05-gamepad-rumble/gamepad-rumble.c"]),
 		.sdlExampleExecutable(name: "input-joystick-events", sources: ["input/02-joystick-events/joystick-events.c"]),
 		.sdlExampleExecutable(name: "input-joystick-polling", sources: ["input/01-joystick-polling/joystick-polling.c"]),
@@ -546,23 +571,23 @@ let package = Package(
 		.sdlExampleExecutable(name: "misc-locale", sources: ["misc/03-locale/locale.c"]),
 		.sdlExampleExecutable(name: "misc-power", sources: ["misc/01-power/power.c"]),
 		.sdlExampleExecutable(name: "pen-drawing-lines", sources: ["pen/01-drawing-lines/drawing-lines.c"]),
-//		.sdlExampleExecutable(name: "renderer-affine-textures", sources: ["renderer/19-affine-textures/affine-textures.c"]),               // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-affine-textures", sources: ["renderer/19-affine-textures/affine-textures.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "renderer-blending", sources: ["renderer/20-blending/blending.c"]),
 		.sdlExampleExecutable(name: "renderer-clear", sources: ["renderer/01-clear/clear.c"]),
-//		.sdlExampleExecutable(name: "renderer-cliprect", sources: ["renderer/15-cliprect/cliprect.c"]),                                    // dataFiles: sample.png
-//		.sdlExampleExecutable(name: "renderer-color-mods", sources: ["renderer/11-color-mods/color-mods.c"]),                              // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-cliprect", sources: ["renderer/15-cliprect/cliprect.c"], additionalDependencies: ["ExampleResources"]),
+		.sdlExampleExecutable(name: "renderer-color-mods", sources: ["renderer/11-color-mods/color-mods.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "renderer-debug-text", sources: ["renderer/18-debug-text/debug-text.c"]),
-//		.sdlExampleExecutable(name: "renderer-geometry", sources: ["renderer/10-geometry/geometry.c"]),                                    // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-geometry", sources: ["renderer/10-geometry/geometry.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "renderer-lines", sources: ["renderer/03-lines/lines.c"]),
 		.sdlExampleExecutable(name: "renderer-points", sources: ["renderer/04-points/points.c"]),
 		.sdlExampleExecutable(name: "renderer-primitives", sources: ["renderer/02-primitives/primitives.c"]),
-//		.sdlExampleExecutable(name: "renderer-read-pixels", sources: ["renderer/17-read-pixels/read-pixels.c"]),                           // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-read-pixels", sources: ["renderer/17-read-pixels/read-pixels.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "renderer-rectangles", sources: ["renderer/05-rectangles/rectangles.c"]),
-//		.sdlExampleExecutable(name: "renderer-rotating-textures", sources: ["renderer/08-rotating-textures/rotating-textures.c"]),         // dataFiles: sample.png
-//		.sdlExampleExecutable(name: "renderer-scaling-textures", sources: ["renderer/09-scaling-textures/scaling-textures.c"]),            // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-rotating-textures", sources: ["renderer/08-rotating-textures/rotating-textures.c"], additionalDependencies: ["ExampleResources"]),
+		.sdlExampleExecutable(name: "renderer-scaling-textures", sources: ["renderer/09-scaling-textures/scaling-textures.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "renderer-streaming-textures", sources: ["renderer/07-streaming-textures/streaming-textures.c"]),
-//		.sdlExampleExecutable(name: "renderer-textures", sources: ["renderer/06-textures/textures.c"]),                                    // dataFiles: sample.png
-//		.sdlExampleExecutable(name: "renderer-viewport", sources: ["renderer/14-viewport/viewport.c"]),                                    // dataFiles: sample.png
+		.sdlExampleExecutable(name: "renderer-textures", sources: ["renderer/06-textures/textures.c"], additionalDependencies: ["ExampleResources"]),
+		.sdlExampleExecutable(name: "renderer-viewport", sources: ["renderer/14-viewport/viewport.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "storage-user", sources: ["storage/01-user/user.c"]),
 
 
