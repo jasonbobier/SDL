@@ -70,8 +70,8 @@ let package = Package(
 	],
 	products: [
 		.library(name: "SimpleDirectMediaLayer", targets: ["SimpleDirectMediaLayer"]),
-		.library(name: "SimpleDirectMediaLayerStatic", type: .static, targets: ["SimpleDirectMediaLayer"]),
-		.library(name: "SimpleDirectMediaLayerDynamic", type: .dynamic, targets: ["SimpleDirectMediaLayer"]),
+//		.library(name: "SimpleDirectMediaLayerStatic", type: .static, targets: ["SimpleDirectMediaLayer"]),
+//		.library(name: "SimpleDirectMediaLayerDynamic", type: .dynamic, targets: ["SimpleDirectMediaLayer"]),	// to be enabled later. requires pruning exports.
 		.library(name: "SimpleDirectMediaLayerTest", type: .static, targets: ["SimpleDirectMediaLayerTest"]),	// SDL3_test
 	],
 	traits: [
