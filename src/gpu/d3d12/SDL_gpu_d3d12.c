@@ -3535,6 +3535,9 @@ static D3D12Texture *D3D12_INTERNAL_CreateTexture(
             srvDesc.Texture3D.MipLevels = createinfo->num_levels;
             srvDesc.Texture3D.MostDetailedMip = 0;
             srvDesc.Texture3D.ResourceMinLODClamp = 0; // default behavior
+        } else if (createinfo->sample_count > SDL_GPU_SAMPLECOUNT_1) {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
+            srvDesc.Texture2DMS.UnusedField_NothingToDefine = 0;
         } else {
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Texture2D.MipLevels = createinfo->num_levels;
@@ -6004,7 +6007,11 @@ static void D3D12_UploadToTexture(
         needsPlacementCopy = source->offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT != 0;
     }
 
-    alignedBytesPerSlice = alignedRowPitch * destination->h;
+    alignedBytesPerSlice = alignedRowPitch * blockHeight;
+    if (!renderer->UnrestrictedBufferTextureCopyPitchSupported && destination->d > 1 && alignedBytesPerSlice % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT != 0) {
+        needsRealignment = true;
+        alignedBytesPerSlice = D3D12_INTERNAL_Align(alignedBytesPerSlice, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+    }
 
     sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
     sourceLocation.PlacedFootprint.Footprint.Format = SDLToD3D12_TextureFormat[textureContainer->header.info.format];
@@ -6018,7 +6025,7 @@ static void D3D12_UploadToTexture(
         temporaryBuffer = D3D12_INTERNAL_CreateBuffer(
             d3d12CommandBuffer->renderer,
             0,
-            alignedRowPitch * blockHeight * destination->d,
+            alignedBytesPerSlice * destination->d,
             D3D12_BUFFER_TYPE_UPLOAD,
             NULL);
 
