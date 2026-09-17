@@ -19,7 +19,7 @@ module SimpleDirectMediaLayer {
 	textual header "SDL3/SDL_openxr.h"
 	textual header "SDL3/SDL_revision.h"
 	textual header "SDL3/SDL_vulkan.h"
-	
+
 	exclude header "SDL3/SDL_test.h"
 	exclude header "SDL3/SDL_test_assert.h"
 	exclude header "SDL3/SDL_test_common.h"
@@ -32,5 +32,5 @@ module SimpleDirectMediaLayer {
 	exclude header "SDL3/SDL_test_md5.h"
 	exclude header "SDL3/SDL_test_memory.h"
 
-    export *
+	export *
 }

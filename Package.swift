@@ -4,6 +4,27 @@
 import Foundation
 import PackageDescription
 
+// Returns paths from basePath
+func contentsOfDirectory(path: String, relativeTo basePath: String = Context.packageDirectory, files: Bool = false, withExtensions extensions: [String]? = nil, directories: Bool = false, exclude: [String] = []) -> [String] {
+	let baseURL = URL(filePath: basePath, directoryHint: .isDirectory).standardizedFileURL
+	let basePath = baseURL.path(percentEncoded: false)
+	let directoryURL = URL(string: path, relativeTo: baseURL)!
+	let urls = (try? FileManager.default.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)) ?? []
+
+	return urls
+		.filter { !exclude.contains($0.lastPathComponent) }
+		.filter {
+			if try! $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory! {
+				directories
+			} else {
+				files && (extensions?.contains($0.pathExtension) ?? true)
+			}
+		}
+		.map {
+			String($0.standardizedFileURL.path(percentEncoded: false).trimmingPrefix(basePath))
+		}
+}
+
 extension Target {
 	static func sdlTestExecutable(name: String, sources: [String]? = nil, additionalDependencies: [Dependency] = [], additionalSources: [String] = [], additionalCSettings: [CSetting] = [], additionalLinkerSettings: [LinkerSetting] = []) -> Target {
 		.executableTarget(
@@ -36,25 +57,10 @@ extension Target {
 	}
 }
 
+// Matches CMake's BUILD_DEPENDENT for tests
 let buildDependentSettings: [CSetting] = [
 	.headerSearchPath("../src"),
 	.headerSearchPath("../include/build_config"),
-]
-let excludeList = [
-	"android-project",
-	"build-scripts",
-	"cmake",
-	"docs",
-	"examples",
-	"src/gpu/metal/Metal_Blit.metal",
-	"src/hidapi/testgui",
-	"src/render/metal/SDL_shaders_metal.metal",
-	"swift",
-	"test",
-	"VisualC",
-	"VisualC-GDK",
-	"wayland-protocols",
-	"Xcode"
 ]
 
 let package = Package(
@@ -64,7 +70,15 @@ let package = Package(
 	],
 	products: [
 		.library(name: "SimpleDirectMediaLayer", targets: ["SimpleDirectMediaLayer"]),
-		.library(name: "SimpleDirectMediaLayerTest", targets: ["SimpleDirectMediaLayerTest"]),
+		.library(name: "SimpleDirectMediaLayerStatic", type: .static, targets: ["SimpleDirectMediaLayer"]),
+		.library(name: "SimpleDirectMediaLayerDynamic", type: .dynamic, targets: ["SimpleDirectMediaLayer"]),
+		.library(name: "SimpleDirectMediaLayerTest", type: .static, targets: ["SimpleDirectMediaLayerTest"]),	// SDL3_test
+	],
+	traits: [
+		.trait(
+			name: "SteamStorage",
+			description: "Enable the Steam user storage backend (CMake's SDL_STORAGE_STEAM)."
+		),
 	],
 	dependencies: [
 		.package(url: "https://github.com/swiftlang/swift-subprocess", from: "1.0.0"),
@@ -78,145 +92,73 @@ let package = Package(
 		.target(
 			name: "SimpleDirectMediaLayer",
 			dependencies: [
-				.byNameItem(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
+//				.byNameItem(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
 				.byNameItem(name: "macOS", condition: .when(platforms: [.macOS])),
 				.byNameItem(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
 			],
 			path: ".",
-			exclude: excludeList,
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
+				+ contentsOfDirectory(path: "src/atomic", directories: true)
+				+ contentsOfDirectory(path: "src/audio", directories: true, exclude: ["disk", "dummy"])
+				+ contentsOfDirectory(path: "src/camera", directories: true, exclude: ["dummy"])
+				+ contentsOfDirectory(path: "src/core", directories: true)
+				+ contentsOfDirectory(path: "src/cpuinfo", directories: true)
+				+ contentsOfDirectory(path: "src/dialog", directories: true)
+				+ contentsOfDirectory(path: "src/dynapi", files: true, withExtensions: ["exports", "sym", "py"], directories: true)
+				+ contentsOfDirectory(path: "src/events", directories: true)
+				+ contentsOfDirectory(path: "src/filesystem", directories: true)
+				+ contentsOfDirectory(path: "src/gpu", directories: true, exclude: ["vulkan", "xr"])
+				+ contentsOfDirectory(path: "src/haptic", directories: true, exclude: ["hidapi"])
+				+ contentsOfDirectory(path: "src/hidapi", files: true, withExtensions: ["txt", "md", "am", "ac", "build", ""], directories: true)
+				+ contentsOfDirectory(path: "src/io", directories: true, exclude: ["generic"])
+				+ contentsOfDirectory(path: "src/joystick", files: true, withExtensions: ["sh", "py"], directories: true, exclude: ["hidapi", "virtual"])
+				+ contentsOfDirectory(path: "src/libm", directories: true)
+				+ contentsOfDirectory(path: "src/loadso", directories: true)
+				+ contentsOfDirectory(path: "src/locale", directories: true)
+				+ contentsOfDirectory(path: "src/main", directories: true, exclude: ["generic"])
+				+ contentsOfDirectory(path: "src/misc", directories: true)
+				+ contentsOfDirectory(path: "src/notification", directories: true)
+				+ contentsOfDirectory(path: "src/power", directories: true)
+				+ contentsOfDirectory(path: "src/process", directories: true)
+				+ contentsOfDirectory(path: "src/render/direct3d", files: true, withExtensions: ["bat", "hlsl", "hlsli"], directories: true)
+				+ contentsOfDirectory(path: "src/render/direct3d11", files: true, withExtensions: ["bat", "hlsl", "hlsli"], directories: true)
+				+ contentsOfDirectory(path: "src/render/direct3d12", files: true, withExtensions: ["bat", "hlsl", "hlsli", "cpp"], directories: true)
+				+ contentsOfDirectory(path: "src/render/gpu", directories: true)
+				+ contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal", "m"], directories: true)
+				+ contentsOfDirectory(path: "src/render/ngage", files: true, withExtensions: ["cpp", "hpp"], directories: true)
+				+ contentsOfDirectory(path: "src/render/opengl", directories: true)
+				+ contentsOfDirectory(path: "src/render/opengles", directories: true)
+				+ contentsOfDirectory(path: "src/render/opengles2", directories: true)
+				+ contentsOfDirectory(path: "src/render/ps2", directories: true)
+				+ contentsOfDirectory(path: "src/render/psp", directories: true)
+				+ contentsOfDirectory(path: "src/render/software", directories: true)
+				+ contentsOfDirectory(path: "src/render/vitagxm", directories: true)
+				+ contentsOfDirectory(path: "src/render/vulkan", files: true, withExtensions: ["bat", "hlsl", "hlsli"], directories: true)
+				+ contentsOfDirectory(path: "src/sensor", directories: true, exclude: ["dummy"])
+				+ contentsOfDirectory(path: "src/stdlib", files: true, withExtensions: ["masm"], directories: true)
+				+ contentsOfDirectory(path: "src/storage", directories: true, exclude: ["generic", "steam"])
+				+ contentsOfDirectory(path: "src/thread", directories: true)
+				+ contentsOfDirectory(path: "src/time", directories: true)
+				+ contentsOfDirectory(path: "src/timer", directories: true)
+				+ contentsOfDirectory(path: "src/tray", directories: true)
+				+ contentsOfDirectory(path: "src/video", files: true, withExtensions: ["pl"], directories: true, exclude: ["dummy", "offscreen", "yuv2rgb"])
+				+ contentsOfDirectory(path: "src/video/yuv2rgb", files: true, withExtensions: ["md", ""])
+				+ [
+					"src/test",
+				],
 			sources: [
-				"src/SDL.c",
-				"src/SDL_assert.c",
-				"src/SDL_error.c",
-				"src/SDL_guid.c",
-				"src/SDL_hashtable.c",
-				"src/SDL_hints.c",
-				"src/SDL_log.c",
-				"src/SDL_properties.c",
-				"src/SDL_utils.c",
-				"src/atomic",
-				"src/audio/SDL_audio.c",
-				"src/audio/SDL_audiocvt.c",
-				"src/audio/SDL_audioqueue.c",
-				"src/audio/SDL_audioresample.c",
-				"src/audio/SDL_audiotypecvt.c",
-				"src/audio/SDL_mixer.c",
-				"src/audio/disk",
-				"src/audio/dummy",
-				"src/audio/SDL_wave.c",
-				"src/camera/SDL_camera.c",
-				"src/camera/dummy",
-				"src/core/SDL_core_unsupported.c",
-				"src/cpuinfo",
-				"src/dialog/SDL_dialog.c",
-				"src/dialog/SDL_dialog_utils.c",
-				"src/dynapi/SDL_dynapi.c",
-				"src/events/SDL_categories.c",
-				"src/events/SDL_clipboardevents.c",
-				"src/events/SDL_displayevents.c",
-				"src/events/SDL_dropevents.c",
-				"src/events/SDL_events.c",
-				"src/events/SDL_eventwatch.c",
-				"src/events/SDL_keyboard.c",
-				"src/events/SDL_keymap.c",
-				"src/events/SDL_mouse.c",
-				"src/events/SDL_notificationevents.c",
-				"src/events/SDL_pen.c",
-				"src/events/SDL_quit.c",
-				"src/events/SDL_touch.c",
-				"src/events/SDL_windowevents.c",
-				"src/filesystem/SDL_filesystem.c",
-				"src/gpu/SDL_gpu.c",
-				"src/gpu/vulkan/SDL_gpu_vulkan.c",
-				"src/gpu/xr/SDL_openxrdyn.c",
-				"src/haptic/SDL_haptic.c",
-				"src/haptic/hidapi",
-				"src/hidapi/SDL_hidapi.c",
-				"src/io/SDL_asyncio.c",
-				"src/io/SDL_iostream.c",
-				"src/io/generic",
-				"src/joystick/SDL_gamepad.c",
-				"src/joystick/SDL_joystick.c",
-				"src/joystick/SDL_steam_virtual_gamepad.c",
-				"src/joystick/controller_type.c",
-				"src/joystick/hidapi",
-				"src/joystick/virtual",
-				"src/loadso/dlopen",
-				"src/locale/SDL_locale.c",
-				"src/main/SDL_main_callbacks.c",
-				"src/main/SDL_runapp.c",
-				"src/main/generic",
-				"src/misc/SDL_url.c",
-				"src/notification/SDL_notification.c",
-				"src/power/SDL_power.c",
-				"src/process/SDL_process.c",
-				"src/render/SDL_render.c",
-				"src/render/SDL_yuv_sw.c",
-				"src/render/gpu/SDL_pipeline_gpu.c",
-				"src/render/gpu/SDL_render_gpu.c",
-				"src/render/gpu/SDL_shaders_gpu.c",
-				"src/render/opengl",
-				"src/render/opengles2",
-				"src/render/software",
-				"src/sensor/SDL_sensor.c",
-				"src/sensor/dummy",
-				"src/stdlib/SDL_crc16.c",
-				"src/stdlib/SDL_crc32.c",
-				"src/stdlib/SDL_getenv.c",
-				"src/stdlib/SDL_iconv.c",
-				"src/stdlib/SDL_malloc.c",
-				"src/stdlib/SDL_memcpy.c",
-				"src/stdlib/SDL_memmove.c",
-				"src/stdlib/SDL_memset.c",
-				"src/stdlib/SDL_murmur3.c",
-				"src/stdlib/SDL_qsort.c",
-				"src/stdlib/SDL_random.c",
-				"src/stdlib/SDL_stdlib.c",
-				"src/stdlib/SDL_string.c",
-				"src/stdlib/SDL_strtokr.c",
-				"src/storage/SDL_storage.c",
-				"src/storage/generic",
-				"src/thread/SDL_thread.c",
-				"src/time/SDL_time.c",
-				"src/timer/SDL_timer.c",
-				"src/tray/SDL_tray_utils.c",
-				"src/video/SDL_RLEaccel.c",
-				"src/video/SDL_blit.c",
-				"src/video/SDL_blit_0.c",
-				"src/video/SDL_blit_1.c",
-				"src/video/SDL_blit_A.c",
-				"src/video/SDL_blit_N.c",
-				"src/video/SDL_blit_auto.c",
-				"src/video/SDL_blit_copy.c",
-				"src/video/SDL_blit_slow.c",
-				"src/video/SDL_bmp.c",
-				"src/video/SDL_clipboard.c",
-				"src/video/SDL_egl.c",
-				"src/video/SDL_fillrect.c",
-				"src/video/SDL_pixels.c",
-				"src/video/SDL_rect.c",
-				"src/video/SDL_rotate.c",
-				"src/video/SDL_stb.c",
-				"src/video/SDL_stretch.c",
-				"src/video/SDL_surface.c",
-				"src/video/SDL_video.c",
-				"src/video/SDL_video_unsupported.c",
-				"src/video/SDL_vulkan_utils.c",
-				"src/video/SDL_yuv.c",
-				"src/video/dummy",
-				"src/video/offscreen",
-				"src/video/yuv2rgb/yuv_rgb_lsx.c",
-				"src/video/yuv2rgb/yuv_rgb_sse.c",
-				"src/video/yuv2rgb/yuv_rgb_std.c",
+				"src"
 			],
 			publicHeadersPath: "include",
 			cSettings: [
 				.headerSearchPath("swift/Sources/SimpleDirectMediaLayer/include"),
 				.headerSearchPath("include/build_config"),
 				.headerSearchPath("src"),
-				.headerSearchPath("src/video/khronos"),
 				.unsafeFlags(["-fno-modules"]),
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
+				.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/src/video/khronos"]),
+				.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
 			],
 			plugins: [
 				"BuildSDLRevisionHeaderPlugin",
@@ -229,7 +171,9 @@ let package = Package(
 				"SimpleDirectMediaLayer"
 			],
 			path: ".",
-			exclude: excludeList,
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
+				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude:["test"]),
 			sources: [
 				"src/test"
 			],
@@ -238,17 +182,12 @@ let package = Package(
 
 
 		// MARK: - Private Platform Libraries
-
+/*
 		.target(
 			name: "apple",
 			path: ".",
 			exclude: excludeList,
 			sources: [
-				"src/audio/coreaudio",
-				"src/camera/coremedia",
-				"src/gpu/metal/SDL_gpu_metal.m",
-				"src/joystick/apple",
-				"src/render/metal/SDL_render_metal.m",
 			],
 			publicHeadersPath: "swift/Sources/apple/include",
 			cSettings: [
@@ -259,22 +198,46 @@ let package = Package(
 				.unsafeFlags(["-fno-modules"])
 			],
 		),
-
+*/
 		.target(
 			name: "macOS",
 			path: ".",
-			exclude: excludeList,
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
+				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude: [
+					"audio", "camera", "dialog", "filesystem", "gpu", "haptic", "joystick", "locale", "misc", "notification", "power", "render", "tray", "video"
+				])
+				+ contentsOfDirectory(path: "src/audio", files: true, directories: true, exclude: ["coreaudio"])
+				+ contentsOfDirectory(path: "src/camera", files: true, directories: true, exclude: ["coremedia"])
+				+ contentsOfDirectory(path: "src/dialog", files: true, directories: true, exclude: ["cocoa"])
+				+ contentsOfDirectory(path: "src/filesystem", files: true, directories: true, exclude: ["cocoa"])
+				+ contentsOfDirectory(path: "src/gpu", files: true, directories: true, exclude: ["metal"])
+				+ contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"])
+				+ contentsOfDirectory(path: "src/haptic", files: true, directories: true, exclude: ["darwin"])
+				+ contentsOfDirectory(path: "src/joystick", files: true, directories: true, exclude: ["apple", "darwin"])
+				+ contentsOfDirectory(path: "src/locale", files: true, directories: true, exclude: ["macos"])
+				+ contentsOfDirectory(path: "src/misc", files: true, directories: true, exclude: ["macos"])
+				+ contentsOfDirectory(path: "src/notification", files: true, directories: true, exclude: ["cocoa"])
+				+ contentsOfDirectory(path: "src/power", files: true, directories: true, exclude: ["macos"])
+				+ contentsOfDirectory(path: "src/render", files: true, directories: true, exclude: ["metal"])
+				+ contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"])
+				+ contentsOfDirectory(path: "src/tray", files: true, directories: true, exclude: ["cocoa"])
+				+ contentsOfDirectory(path: "src/video", files: true, directories: true, exclude: ["cocoa"]),
 			sources: [
-				"src/dialog/cocoa",
-				"src/filesystem/cocoa",
-				"src/haptic/darwin",
-				"src/joystick/darwin",
-				"src/locale/macos",
-				"src/misc/macos",
-				"src/notification/cocoa",
-				"src/power/macos",
-				"src/tray/cocoa",
-				"src/video/cocoa",
+				"src/audio",
+				"src/camera",
+				"src/dialog",
+				"src/filesystem",
+				"src/gpu",
+				"src/haptic",
+				"src/joystick",
+				"src/locale",
+				"src/misc",
+				"src/notification",
+				"src/power",
+				"src/render",
+				"src/tray",
+				"src/video",
 			],
 			publicHeadersPath: "swift/Sources/macOS/include",
 			cSettings: [
@@ -309,13 +272,22 @@ let package = Package(
 		.target(
 			name: "posix",
 			path: ".",
-			exclude: excludeList,
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
+				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude: ["filesystem", "loadso", "process", "thread", "time", "timer"])
+				+ contentsOfDirectory(path: "src/filesystem", files: true, directories: true, exclude: ["posix"])
+				+ contentsOfDirectory(path: "src/loadso", files: true, directories: true, exclude: ["dlopen"])
+				+ contentsOfDirectory(path: "src/process", files: true, directories: true, exclude: ["posix"])
+				+ contentsOfDirectory(path: "src/thread", files: true, directories: true, exclude: ["pthread"])
+				+ contentsOfDirectory(path: "src/time", files: true, directories: true, exclude: ["unix"])
+				+ contentsOfDirectory(path: "src/timer", files: true, directories: true, exclude: ["unix"]),
 			sources: [
-				"src/filesystem/posix",
-				"src/process/posix",
-				"src/thread/pthread",
-				"src/time/unix",
-				"src/timer/unix",
+				"src/filesystem",
+				"src/loadso",
+				"src/process",
+				"src/thread",
+				"src/time",
+				"src/timer",
 			],
 			publicHeadersPath: "swift/Sources/posix/include",
 			cSettings: [
@@ -331,11 +303,7 @@ let package = Package(
 
 		.target(
 			name: "BundleHelpers",
-			path: ".",
-			exclude: excludeList.filter { ($0 != "swift") },
-			sources: [
-				"swift/Sources/BundleHelpers",
-			],
+			path: "swift/Sources/BundleHelpers",
 		),
 
 		.target(
@@ -344,7 +312,9 @@ let package = Package(
 				"TestResources"
 			],
 			path: ".",
-			exclude: excludeList.filter { $0 != "test" },
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["test"])
+				+ contentsOfDirectory(path: "test", files: true, directories: true, exclude: ["testutils.c"]),
 			sources: [
 				"test/testutils.c",
 			],
@@ -418,20 +388,15 @@ let package = Package(
 				"BundleHelpers",
 			],
 			path: ".",
-			exclude: excludeList.filter { ($0 != "test") && ($0 != "swift") },
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["swift", "test"])
+				+ contentsOfDirectory(path: "swift", files: true, directories: true, exclude: ["Sources"])
+				+ contentsOfDirectory(path: "swift/Sources", files: true, directories: true, exclude: ["TestResources"])
+				+ contentsOfDirectory(path: "test", files: true, withExtensions: ["c", "cpp", "dat", "h", "hlsl", "in", "m", "markdown", "sh", "txt", "xbm", ""], directories: true, exclude: ["moose.dat", "utf8.txt"]),
 			sources: [
 				"swift/Sources/TestResources",
 			],
-			resources: {
-				let testDirectory = URL(filePath: Context.packageDirectory).appending(path: "test")
-				let urls = (try? FileManager.default.contentsOfDirectory(at: testDirectory, includingPropertiesForKeys: nil)) ?? []
-
-				return urls
-					.filter { ["png", "wav", "csv", "hex"].contains($0.pathExtension) || ["moose.dat", "utf8.txt"].contains($0.lastPathComponent) }
-					.map { $0.lastPathComponent }
-					.sorted()
-					.map { .copy("test/\($0)") }
-			}()
+			resources: (contentsOfDirectory(path: "test", files: true, withExtensions: ["png", "wav", "csv", "hex"]) + ["test/moose.dat", "test/utf8.txt"]).map { .copy($0) }
 		),
 
 		.sdlTestExecutable(name: "checkkeys"),
@@ -491,12 +456,12 @@ let package = Package(
 		.sdlTestExecutable(name: "testpen"),
 		.sdlTestExecutable(name: "testpopup"),		// Has a main thread issue!!!!
 		.sdlTestExecutable(name: "testrelative"),
-		.sdlTestExecutable(name: "testrendercopyex", additionalDependencies: ["testutils", "TestResources"]),
-		.sdlTestExecutable(name: "testrendertarget", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testrendercopyex", additionalDependencies: ["testutils", "TestResources"], additionalCSettings: [.unsafeFlags(["-fno-modules"])]),
+		.sdlTestExecutable(name: "testrendertarget", additionalDependencies: ["testutils", "TestResources"], additionalCSettings: [.unsafeFlags(["-fno-modules"])]),
 		.sdlTestExecutable(name: "testresample", additionalDependencies: ["TestResources"]),
 		.sdlTestExecutable(name: "testrotate"),
 		.sdlTestExecutable(name: "testrumble"),
-		.sdlTestExecutable(name: "testscale", additionalDependencies: ["testutils", "TestResources"]),
+		.sdlTestExecutable(name: "testscale", additionalDependencies: ["testutils", "TestResources"], additionalCSettings: [.unsafeFlags(["-fno-modules"])]),
 		.sdlTestExecutable(name: "testsensor"),
 		.sdlTestExecutable(name: "testshader", additionalDependencies: ["testutils", "TestResources"], additionalLinkerSettings: [.linkedFramework("OpenGL")]),
 		.sdlTestExecutable(name: "testshape", additionalDependencies: ["TestResources"]),
@@ -537,7 +502,11 @@ let package = Package(
 				"BundleHelpers",
 			],
 			path: ".",
-			exclude: excludeList.filter { ($0 != "test") && ($0 != "swift") },
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["swift", "test"])
+				+ contentsOfDirectory(path: "swift", files: true, directories: true, exclude: ["Sources"])
+				+ contentsOfDirectory(path: "swift/Sources", files: true, directories: true, exclude: ["ExampleResources"])
+				+ contentsOfDirectory(path: "test", files: true, directories: true, exclude: ["sample.png", "speaker.png", "icon2x.png", "sample.wav","sword.wav"]),
 			sources: [
 				"swift/Sources/ExampleResources",
 			],
@@ -598,6 +567,7 @@ let package = Package(
 			capability: .buildTool(),
 			path: "swift/Sources/BuildSDLRevisionHeaderPlugin"
 		),
+
 	]
 )
 
