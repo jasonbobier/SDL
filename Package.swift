@@ -60,7 +60,7 @@ extension Target {
 // Matches CMake's BUILD_DEPENDENT for tests
 let buildDependentSettings: [CSetting] = [
 	.headerSearchPath("../src"),
-	.headerSearchPath("../include/build_config"),
+	.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/include/build_config"]),
 ]
 
 let package = Package(
@@ -75,10 +75,9 @@ let package = Package(
 		.library(name: "SimpleDirectMediaLayerTest", type: .static, targets: ["SimpleDirectMediaLayerTest"]),	// SDL3_test
 	],
 	traits: [
-		.trait(
-			name: "SteamStorage",
-			description: "Enable the Steam user storage backend (CMake's SDL_STORAGE_STEAM)."
-		),
+		.trait(name: "OpenXRGPU", description: "Enable OpenXR support in SDL_GPU (CMake's SDL_GPU_OPENXR)."),
+		.trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake's SDL_STORAGE_STEAM)."),
+		.trait(name: "VulkanRenderer", description: "Enable the Vulkan render driver (CMake's SDL_RENDER_VULKAN)."),
 	],
 	dependencies: [
 		.package(url: "https://github.com/swiftlang/swift-subprocess", from: "1.0.0"),
@@ -158,7 +157,9 @@ let package = Package(
 				.unsafeFlags(["-fno-modules"]),
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
 				.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/src/video/khronos"]),
+				.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
 				.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
+				.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
 			],
 			plugins: [
 				"BuildSDLRevisionHeaderPlugin",
@@ -274,7 +275,8 @@ let package = Package(
 			path: ".",
 			exclude:
 				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
-				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude: ["filesystem", "loadso", "process", "thread", "time", "timer"])
+				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude: ["core", "filesystem", "loadso", "process", "thread", "time", "timer"])
+				+ contentsOfDirectory(path: "src/core", files: true, directories: true, exclude: ["unix"])
 				+ contentsOfDirectory(path: "src/filesystem", files: true, directories: true, exclude: ["posix"])
 				+ contentsOfDirectory(path: "src/loadso", files: true, directories: true, exclude: ["dlopen"])
 				+ contentsOfDirectory(path: "src/process", files: true, directories: true, exclude: ["posix"])
@@ -282,6 +284,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/time", files: true, directories: true, exclude: ["unix"])
 				+ contentsOfDirectory(path: "src/timer", files: true, directories: true, exclude: ["unix"]),
 			sources: [
+				"src/core",
 				"src/filesystem",
 				"src/loadso",
 				"src/process",
