@@ -70,8 +70,8 @@ let package = Package(
 	],
 	products: [
 		.library(name: "SimpleDirectMediaLayer", targets: ["SimpleDirectMediaLayer"]),
-//		.library(name: "SimpleDirectMediaLayerStatic", type: .static, targets: ["SimpleDirectMediaLayer"]),
-//		.library(name: "SimpleDirectMediaLayerDynamic", type: .dynamic, targets: ["SimpleDirectMediaLayer"]),	// to be enabled later. requires pruning exports.
+		.library(name: "SimpleDirectMediaLayerStatic", type: .static, targets: ["SimpleDirectMediaLayer"]),
+		.library(name: "SimpleDirectMediaLayerDynamic", type: .dynamic, targets: ["SimpleDirectMediaLayerDynamic"]),
 		.library(name: "SimpleDirectMediaLayerTest", type: .static, targets: ["SimpleDirectMediaLayerTest"]),	// SDL3_test
 	],
 	traits: [
@@ -166,6 +166,27 @@ let package = Package(
 			]
 		),
 
+		// We need a wrapper target for this to use the export list properly
+		.target(
+			name: "SimpleDirectMediaLayerDynamic",
+			dependencies: [
+				"SimpleDirectMediaLayer"
+			],
+			path: ".",
+			exclude:
+				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["swift"])
+				+ contentsOfDirectory(path: "swift", files: true, directories: true, exclude: ["Sources"])
+				+ contentsOfDirectory(path: "swift/Sources", files: true, directories: true, exclude: ["SimpleDirectMediaLayerDynamic"]),
+			sources: [
+				"swift/Sources/SimpleDirectMediaLayerDynamic"
+			],
+			publicHeadersPath: "include",
+			linkerSettings: [
+				.unsafeFlags(["-exported_symbols_list", "\(Context.packageDirectory)/src/dynapi/SDL_dynapi.exports"]),
+			],
+		),
+
+		// This is the SDL3_test library. Maybe rename it to that since it really isn't much of a swift facing interface.
 		.target(
 			name: "SimpleDirectMediaLayerTest",
 			dependencies: [
