@@ -78,6 +78,14 @@ extension Target {
 	}
 }
 
+// Appended to every target that compiles SDL internals
+let enabledTraitDefines: [CSetting] = [
+		.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
+		.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
+		.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
+		.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
+]
+
 // Matches CMake's BUILD_DEPENDENT for tests
 let buildDependentSettings: [CSetting] = [
 	.headerSearchPath("../src"),
@@ -96,6 +104,7 @@ let package = Package(
 		.library(name: "SimpleDirectMediaLayerTest", type: .static, targets: ["SimpleDirectMediaLayerTest"]),	// SDL3_test
 	],
 	traits: [
+		.trait(name: "LeanAndMean", description: "Build a lean SDL with reduced software-graphics functionality — drops the software blitters, RLE, YUV and the software renderer (CMake's SDL_LEAN_AND_MEAN)."),
 		.trait(name: "OpenXRGPU", description: "Enable OpenXR support in SDL_GPU (CMake's SDL_GPU_OPENXR)."),
 		.trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake's SDL_STORAGE_STEAM)."),
 		.trait(name: "VulkanRenderer", description: "Enable the Vulkan render driver (CMake's SDL_RENDER_VULKAN)."),
@@ -178,10 +187,7 @@ let package = Package(
 				.unsafeFlags(["-fno-modules"]),
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
 				.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/src/video/khronos"]),
-				.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
-				.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
-				.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
-			],
+			] + enabledTraitDefines,
 			plugins: [
 				"BuildSDLRevisionHeaderPlugin",
 			]
@@ -289,8 +295,8 @@ let package = Package(
 				.headerSearchPath("include/build_config"),
 				.headerSearchPath("src"),
 				.headerSearchPath("src/video/khronos"),
-				.unsafeFlags(["-fno-modules"])
-			],
+				.unsafeFlags(["-fno-modules"]),
+			] + enabledTraitDefines,
 			linkerSettings: [
 				.linkedFramework("AVFoundation"),
 				.linkedFramework("AppKit"),
@@ -340,8 +346,8 @@ let package = Package(
 				.headerSearchPath("include"),
 				.headerSearchPath("include/build_config"),
 				.headerSearchPath("src"),
-				.unsafeFlags(["-fno-modules"])
-			],
+				.unsafeFlags(["-fno-modules"]),
+			] + enabledTraitDefines,
 		),
 
 
