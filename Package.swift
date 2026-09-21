@@ -80,10 +80,12 @@ extension Target {
 
 // Appended to every target that compiles SDL internals
 let enabledTraitDefines: [CSetting] = [
-		.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
-		.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
-		.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
-		.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
+	.define("SDL_GPU_DISABLED", .when(traits: ["DisableGPU"])),
+	.define("SDL_RENDER_DISABLED", .when(traits: ["DisableRender"])),
+	.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
+	.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
+	.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
+	.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
 ]
 
 // Matches CMake's BUILD_DEPENDENT for tests
@@ -104,10 +106,12 @@ let package = Package(
 		.library(name: "SimpleDirectMediaLayerTest", type: .static, targets: ["SimpleDirectMediaLayerTest"]),	// SDL3_test
 	],
 	traits: [
-		.trait(name: "LeanAndMean", description: "Build a lean SDL with reduced software-graphics functionality — drops the software blitters, RLE, YUV and the software renderer (CMake's SDL_LEAN_AND_MEAN)."),
-		.trait(name: "OpenXRGPU", description: "Enable OpenXR support in SDL_GPU (CMake's SDL_GPU_OPENXR)."),
-		.trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake's SDL_STORAGE_STEAM)."),
-		.trait(name: "VulkanRenderer", description: "Enable the Vulkan render driver (CMake's SDL_RENDER_VULKAN)."),
+		.trait(name: "DisableGPU", description: "Disable SDL_GPU (CMake: SDL_GPU=OFF, which defines SDL_GPU_DISABLED). Removes the Metal and Vulkan GPU backends, the GPU render driver and OpenXR support in SDL_GPU. The SDL_GPU API remains and links, but device creation always fails."),
+		.trait(name: "DisableRender", description: "Disable the 2D render API (CMake: SDL_RENDER=OFF, which defines SDL_RENDER_DISABLED). Removes every render driver, including the software renderer and the GPU render driver. The SDL_Render API remains and links, but renderer creation always fails."),
+		.trait(name: "LeanAndMean", description: "Build a lean SDL with reduced software-graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON, which defines SDL_LEAN_AND_MEAN). Removes the software blitters, RLE, YUV conversion and the software renderer. SDL_CreateSoftwareRenderer remains and links, but always fails — there is no renderer at all on a dummy or offscreen video driver."),
+		.trait(name: "OpenXRGPU", description: "Enable OpenXR support in SDL_GPU (CMake: SDL_GPU_OPENXR=ON, which defines HAVE_GPU_OPENXR). Adds the OpenXR loader and the XR code paths in the Vulkan GPU backend. Requires an OpenXR loader and an active runtime at run time."),
+		.trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake: no option — defined unconditionally for macOS, which defines SDL_STORAGE_STEAM). Adds the steam storage driver. Loads the Steam API dynamically at run time, and stays inactive when it is absent."),
+		.trait(name: "VulkanRenderer", description: "Enable the Vulkan render driver (CMake: SDL_RENDER_VULKAN=ON, which defines SDL_VIDEO_RENDER_VULKAN). Adds the vulkan driver to SDL_CreateRenderer. Requires MoltenVK or a Vulkan loader at run time."),
 	],
 	dependencies: [
 		.package(url: "https://github.com/swiftlang/swift-subprocess", from: "1.0.0"),
