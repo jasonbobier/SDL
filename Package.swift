@@ -1,4 +1,4 @@
-// swift-tools-version: 6.3;(experimentalCGen)
+// swift-tools-version: 6.4;(experimentalCGen)
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 /*
@@ -24,27 +24,27 @@
 
 import Foundation
 import PackageDescription
+import System
 
-// Returns paths from basePath
-func contentsOfDirectory(path: String, relativeTo basePath: String = Context.packageDirectory, files: Bool = false, withExtensions extensions: [String]? = nil, directories: Bool = false, exclude: [String] = []) -> [String] {
-	let baseURL = URL(filePath: basePath, directoryHint: .isDirectory).standardizedFileURL
-	let basePath = baseURL.path(percentEncoded: false)
-	let directoryURL = URL(string: path, relativeTo: baseURL)!
-	let urls = (try? FileManager.default.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)) ?? []
 
-	return urls
-		.filter { !exclude.contains($0.lastPathComponent) }
-		.filter {
-			if try! $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory! {
-				directories
-			} else {
-				files && (extensions?.contains($0.pathExtension) ?? true)
-			}
-		}
-		.map {
-			String($0.standardizedFileURL.path(percentEncoded: false).trimmingPrefix(basePath))
-		}
-}
+// Appended to every target that compiles SDL internals
+//let enabledTraitCSettings: [CSetting] = [
+
+
+	// Subsystem switches
+//	.define("SDL_GPU_DISABLED", .when(traits: ["DisableGPU"])),
+//	.define("SDL_POWER_DISABLED", .when(traits: ["DisablePower"])),
+//	.define("SDL_RENDER_DISABLED", .when(traits: ["DisableRender"])),
+//
+//	
+//	.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
+//	.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
+//	.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
+//	.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
+//]
+
+
+// MARK: - SDL Target Types
 
 extension Target {
 	static func sdlTestExecutable(name: String, sources: [String]? = nil, additionalDependencies: [Dependency] = [], additionalSources: [String] = [], additionalCSettings: [CSetting] = [], additionalLinkerSettings: [LinkerSetting] = []) -> Target {
@@ -52,14 +52,14 @@ extension Target {
 			name: name,
 			dependencies: [
 				"SimpleDirectMediaLayer",
-				"SimpleDirectMediaLayerTest",
+				"SDL3_test",
 			] + additionalDependencies,
 			path: "test",
 			sources: (sources ?? [name + ".c"]) + additionalSources,
 			cSettings: [
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
-				.define("HAVE_BUILD_CONFIG"),
-				.define("HAVE_OPENGL"),
+				.define("HAVE_BUILD_CONFIG"),	// CMake defines it for all tests even though only used by some
+				.define("HAVE_SIGNAL_H"),
 				.headerSearchPath("../src/video/khronos"),
 			] + additionalCSettings,
 			linkerSettings: additionalLinkerSettings,
@@ -76,23 +76,334 @@ extension Target {
 			sources: sources,
 		)
 	}
+
+	static func sdlTarget(name: String, dependencies: [Target.Dependency] = [], path: String = ".", additionalExcludes: [String] = [], sources: [String], copyResources: [String]? = nil, publicHeadersPath: String? = nil, additionalCSettings: [CSetting] = [], additionalLinkerSettings: [LinkerSetting] = [], plugins: [Target.PluginUsage]? = nil) -> Target {
+		let publicHeadersPath = publicHeadersPath ?? "swift/Sources/\(name)/include"
+		let includedPaths = sources + (copyResources ?? [])
+
+		return .target(
+			name: name,
+			dependencies: dependencies,
+			path: path,
+			exclude: createExcludePaths(for: path, keeping: includedPaths) + additionalExcludes,
+			sources: sources,
+			resources: copyResources?.map { .copy($0) },
+			publicHeadersPath: publicHeadersPath,
+			cSettings: [
+				.headerSearchPath("include"),
+				.headerSearchPath("swift/Sources/build_config"),
+				.headerSearchPath("include/build_config"),
+				.headerSearchPath("src"),
+				.unsafeFlags(["-fno-modules"]),
+			] + additionalCSettings + TraitDescription.allCSettings,
+			linkerSettings: additionalLinkerSettings,
+			plugins: plugins
+		)
+	}
 }
 
-// Appended to every target that compiles SDL internals
-let enabledTraitDefines: [CSetting] = [
-	.define("SDL_GPU_DISABLED", .when(traits: ["DisableGPU"])),
-	.define("SDL_RENDER_DISABLED", .when(traits: ["DisableRender"])),
-	.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
-	.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
-	.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
-	.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
-]
+
+// MARK: - Directory Contents and Exclude Paths
+
+func contentsOfDirectory(path: String, relativeTo basePath: String = Context.packageDirectory, files: Bool = false, withExtensions extensions: [String]? = nil, directories: Bool = false, except: [String] = []) -> [String] {
+	do {
+		let path = FilePath(path)
+		let basePath = FilePath(basePath)
+
+		precondition(path.isRelative, "\"\(path)\" is not a relative path")
+		precondition(basePath.isAbsolute, "\"\(basePath)\" is not an absolute path")
+
+		guard let fullPath = basePath.lexicallyResolving(path) else {
+			fatalError("\"\(path)\" attempts to escape basePath")
+		}
+		guard let fullPathURL = URL(filePath: fullPath) else {
+			fatalError("Creating URL for full path \"\(fullPath)\" failed.")
+		}
+		let urls = try FileManager.default.contentsOfDirectory(at: fullPathURL, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)
+
+		return try urls
+			.filter {
+				!except.contains($0.lastPathComponent)
+			}
+			.filter {
+				if try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory! {
+					directories
+				} else {
+					files && (extensions?.contains($0.pathExtension) ?? true)
+				}
+			}
+			.map {
+				guard var filePath = FilePath($0) else {
+					fatalError("Creating FilePath for URL \"\($0)\" failed.")
+				}
+				guard filePath.removePrefix(basePath) else {
+					fatalError("Unable to remove prefix \"\(basePath)\" from \"\(filePath)\"")
+				}
+
+				return filePath.string
+			}
+	} catch {
+		fatalError(error.localizedDescription)
+	}
+}
+
+func createExcludePaths(for directoryPath: String, relativeTo basePath: String = Context.packageDirectory, keeping paths: [String] = []) -> [String] {
+	do {
+		let directoryPath = FilePath(directoryPath)
+		let basePath = FilePath(basePath)
+		let paths = paths.map { FilePath($0) }
+
+		precondition(directoryPath.isRelative, "\"\(directoryPath)\" is not a relative path")
+		precondition(basePath.isAbsolute, "\"\(basePath)\" is not an absolute path")
+		precondition(paths.allSatisfy { $0.isRelative }, "paths contains non relative paths")
+
+		guard let fullDirectoryPath = basePath.lexicallyResolving(directoryPath) else {
+			fatalError("\"\(directoryPath)\" attempts to escape basePath")
+		}
+		guard let fullDirectoryPathURL = URL(filePath: fullDirectoryPath) else {
+			fatalError("Creating URL for full path \"\(fullDirectoryPath)\" failed.")
+		}
+		guard try fullDirectoryPathURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory! else {
+			fatalError("\"\(fullDirectoryPathURL)\" is not a directory")
+		}
+		let fullPaths = paths.map {
+			guard let path = fullDirectoryPath.lexicallyResolving($0) else {
+				fatalError("\"\($0)\" attempts to escape \"\(fullDirectoryPath)\"")
+			}
+
+			return path
+		}
+		guard let enumerator = FileManager.default.enumerator(at: fullDirectoryPathURL, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles, errorHandler: { url, error in
+			fatalError("Error \(error.localizedDescription) while enumerating \"\(url)\"")
+		}) else {
+			fatalError("Unable to get enumerator of directory at \"\(fullDirectoryPathURL)\"")
+		}
+		var filePaths: [FilePath] = []
+
+		for case let url as URL in enumerator {
+			let isDirectory = try url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory!
+			guard var urlPath = FilePath(url) else {
+				fatalError("Creating FilePath for URL \"\(url)\" failed.")
+			}
+
+			if fullPaths.contains(where: { $0 == urlPath }) {
+				if isDirectory {
+					enumerator.skipDescendants()
+				}
+			} else if !fullPaths.contains(where: { $0.starts(with: urlPath) }) {
+				if isDirectory {
+					enumerator.skipDescendants()
+				}
+				guard urlPath.removePrefix(fullDirectoryPath) else {
+					fatalError("Unable to remove \"\(fullDirectoryPath)\" from start of \"\(urlPath)\"")
+				}
+				filePaths.append(urlPath)
+			}
+		}
+
+		return filePaths.map(\.string)
+	} catch {
+		fatalError(error.localizedDescription)
+	}
+}
+
+
+// MARK: - TraitDescriptions
+
+struct TraitDescription {
+	let name: String
+	let description: String
+	let enabledTraits: Set<String>
+	let isDefault: Bool
+	let cSettingDefines: [CSettingDefine]
+
+	var cSettings: [CSetting] {
+		cSettingDefines.map { .define($0.name, to: $0.value, .when(platforms: $0.condition?.platforms, configuration: $0.condition?.configuration, traits: [name]))}
+	}
+
+	init(name: String, description: String, enabledTraits: Set<String> = [], isDefault: Bool = false, cSettingDefines: [CSettingDefine]) {
+		self.name = name
+		self.description = description
+		self.enabledTraits = enabledTraits
+		self.isDefault = isDefault
+		self.cSettingDefines = cSettingDefines
+	}
+
+	static let allTraitDescriptions = [
+		enableDefaultAudio,
+		enableAudio,
+		enableAudioDriverCoreAudio,
+		enableAudioDriverDisk,
+		enableAudioDriverDummy,
+		enableDefaultCamera,
+		enableCamera,
+		enableCameraDriverCoreMedia,
+		enableCameraDriverDummy,
+		enableDefaultDialog,
+		enableDialog,
+	]
+
+	static var allTraits: [Trait] {
+		allTraitDescriptions.map { .trait(name: $0.name, description: $0.description, enabledTraits: $0.enabledTraits) }
+	}
+
+	static var defaultEnabledTraits: Trait {
+		.default(
+			enabledTraits: allTraitDescriptions.reduce(into: Set<String>()) { partialResult, traitDescription in
+				if traitDescription.isDefault {
+					partialResult.insert(traitDescription.name)
+				}
+			}
+		)
+	}
+
+	static var allCSettings: [CSetting] {
+		allTraitDescriptions.reduce(into: []) { partialResult, traitDescription in
+			partialResult.append(contentsOf: traitDescription.cSettings)
+		}
+	}
+
+	struct CSettingDefine {
+		struct Condition {
+			let platforms: [Platform]?
+			let configuration: BuildConfiguration?
+
+			static func when(platforms: [Platform]) -> Self {
+				.init(platforms: platforms, configuration: nil)
+			}
+
+			static func when(configuration: BuildConfiguration) -> Self {
+				.init(platforms: nil, configuration: configuration)
+			}
+
+			static func when(platforms: [Platform], configuration: BuildConfiguration) -> Self {
+				.init(platforms: platforms, configuration: configuration)
+			}
+		}
+
+		let name: String
+		let value: String?
+		let condition: Condition?
+
+		static func define(_ name: String, to value: String? = nil, _ condition: Condition? = nil) -> CSettingDefine {
+			.init(name: name, value: value, condition: condition)
+		}
+
+
+		// Audio Subsystem Defines
+		static let sdlSwiftPMAudioEnabled = "SDL_SWIFTPM_AUDIO_ENABLED"
+		static let sdlSwiftPMAudioDriverCoreAudioEnabled = "SDL_SWIFTPM_AUDIO_DRIVER_COREAUDIO_ENABLED"
+		static let sdlSwiftPMAudioDriverDiskEnabled = "SDL_SWIFTPM_AUDIO_DRIVER_DISK_ENABLED"
+		static let sdlSwiftPMAudioDriverDummyEnabled = "SDL_SWIFTPM_AUDIO_DRIVER_DUMMY_ENABLED"
+
+		// Camera Subsystem Defines
+		static let sdlSwiftPMCameraEnabled = "SDL_SWIFTPM_CAMERA_ENABLED"
+		static let sdlSwiftPMCameraDriverCoreMediaEnabled = "SDL_SWIFTPM_CAMERA_DRIVER_COREMEDIA_ENABLED"
+		static let sdlSwiftPMCameraDriverDummyEnabled = "SDL_SWIFTPM_CAMERA_DRIVER_DUMMY_ENABLED"
+
+		// Dialog Subsystem Defines
+		static let sdlSwiftPMDialogEnabled = "SDL_SWIFTPM_DIALOG_ENABLED"
+	}
+
+
+	// Audio Subsystem Traits
+
+	static let enableDefaultAudio = TraitDescription(
+		name: "EnableDefaultAudio",
+		description: "Enable the default audio subsystem and drivers for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMAudioEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverDiskEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverDummyEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableAudio = TraitDescription(
+		name: "EnableAudio",
+		description: "Enable the audio subsystem (CMake: SDL_AUDIO=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioEnabled)]
+	)
+	static let enableAudioDriverCoreAudio = TraitDescription(
+		name: "EnableAudioDriverCoreAudio",
+		description: "Enable the CoreAudio driver for the audio subsystem (CMake: no separate option).",
+		enabledTraits: [enableAudio.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled)],
+	)
+	static let enableAudioDriverDisk = TraitDescription(
+		name: "EnableAudioDriverDisk",
+		description: "Enable the disk driver for the audio subsystem (CMake: SDL_DISKAUDIO=ON).",
+		enabledTraits: [enableAudio.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverDiskEnabled)],
+	)
+	static let enableAudioDriverDummy = TraitDescription(
+		name: "EnableAudioDriverDummy",
+		description: "Enable the dummy driver for the audio subsystem (CMake: SDL_DUMMYAUDIO=ON).",
+		enabledTraits: [enableAudio.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverDummyEnabled)],
+	)
+
+
+	// Camera Subsystem Traits
+
+	static let enableDefaultCamera = TraitDescription(
+		name: "EnableDefaultCamera",
+		description: "Enable the default camera subsystem and drivers for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMCameraEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMCameraDriverDummyEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableCamera = TraitDescription(
+		name: "EnableCamera",
+		description: "Enable the camera subsystem (CMake: SDL_CAMERA=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMCameraEnabled)]
+	)
+	static let enableCameraDriverCoreMedia = TraitDescription(
+		name: "EnableCameraDriverCoreMedia",
+		description: "Enable the CoreMedia driver for the camera subsystem (CMake: no separate option).",
+		enabledTraits: [enableCamera.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled)],
+	)
+	static let enableCameraDriverDummy = TraitDescription(
+		name: "EnableCameraDriverDummy",
+		description: "Enable the dummy driver for the camera subsystem (CMake: SDL_DUMMYCAMERA=ON).",
+		enabledTraits: [enableCamera.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMCameraDriverDummyEnabled)],
+	)
+
+
+	// Dialog Subsystem Traits
+
+	static let enableDefaultDialog = TraitDescription(
+		name: "EnableDefaultDialog",
+		description: "Enable the default dialog subsystem for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMDialogEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableDialog = TraitDescription(
+		name: "EnableDialog",
+		description: "Enable the dialog subsystem (CMake: SDL_DIALOG=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMDialogEnabled)]
+	)
+}
+
+
+// MARK: - Other CSettings
 
 // Matches CMake's BUILD_DEPENDENT for tests
-let buildDependentSettings: [CSetting] = [
+let buildDependentCSettings: [CSetting] = [
 	.headerSearchPath("../src"),
+	.headerSearchPath("../swift/Sources/build_config"),
 	.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/include/build_config"]),
-]
+] + TraitDescription.allCSettings
+
+
+// MARK: - Package
 
 let package = Package(
 	name: "SimpleDirectMediaLayer",
@@ -103,53 +414,54 @@ let package = Package(
 		.library(name: "SimpleDirectMediaLayer", targets: ["SimpleDirectMediaLayer"]),
 		.library(name: "SimpleDirectMediaLayerStatic", type: .static, targets: ["SimpleDirectMediaLayer"]),
 		.library(name: "SimpleDirectMediaLayerDynamic", type: .dynamic, targets: ["SimpleDirectMediaLayerDynamic"]),
-		.library(name: "SimpleDirectMediaLayerTest", type: .static, targets: ["SimpleDirectMediaLayerTest"]),	// SDL3_test
+		.library(name: "SDL3_test", type: .static, targets: ["SDL3_test"]),
 	],
-	traits: [
-		.trait(name: "DisableGPU", description: "Disable SDL_GPU (CMake: SDL_GPU=OFF, which defines SDL_GPU_DISABLED). Removes the Metal and Vulkan GPU backends, the GPU render driver and OpenXR support in SDL_GPU. The SDL_GPU API remains and links, but device creation always fails."),
-		.trait(name: "DisableRender", description: "Disable the 2D render API (CMake: SDL_RENDER=OFF, which defines SDL_RENDER_DISABLED). Removes every render driver, including the software renderer and the GPU render driver. The SDL_Render API remains and links, but renderer creation always fails."),
-		.trait(name: "LeanAndMean", description: "Build a lean SDL with reduced software-graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON, which defines SDL_LEAN_AND_MEAN). Removes the software blitters, RLE, YUV conversion and the software renderer. SDL_CreateSoftwareRenderer remains and links, but always fails — there is no renderer at all on a dummy or offscreen video driver."),
-		.trait(name: "OpenXRGPU", description: "Enable OpenXR support in SDL_GPU (CMake: SDL_GPU_OPENXR=ON, which defines HAVE_GPU_OPENXR). Adds the OpenXR loader and the XR code paths in the Vulkan GPU backend. Requires an OpenXR loader and an active runtime at run time."),
-		.trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake: no option — defined unconditionally for macOS, which defines SDL_STORAGE_STEAM). Adds the steam storage driver. Loads the Steam API dynamically at run time, and stays inactive when it is absent."),
-		.trait(name: "VulkanRenderer", description: "Enable the Vulkan render driver (CMake: SDL_RENDER_VULKAN=ON, which defines SDL_VIDEO_RENDER_VULKAN). Adds the vulkan driver to SDL_CreateRenderer. Requires MoltenVK or a Vulkan loader at run time."),
-	],
+	traits: Set(TraitDescription.allTraits + [TraitDescription.defaultEnabledTraits]),
+	
+	/*
+	 .trait(name: "DisableGPU", description: "Disable the GPU subsystem (CMake: SDL_GPU=OFF, which defines SDL_GPU_DISABLED)."),
+	 .trait(name: "DisablePower", description: "Disable the Power subsystem (CMake: SDL_POWER=OFF, which defines SDL_POWER_DISABLED)."),
+	 .trait(name: "DisableRender", description: "Disable the Render subsystem (CMake: SDL_RENDER=OFF, which defines SDL_RENDER_DISABLED)."),
+	 .trait(name: "LeanAndMean", description: "Build a lean SDL library with reduced graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON, which defines SDL_LEAN_AND_MEAN)."),
+	 .trait(name: "OpenXRGPU", description: "Build SDL_GPU with OpenXR support (CMake: SDL_GPU_OPENXR=ON, which defines HAVE_GPU_OPENXR)."),
+	 .trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake: no option — defines SDL_STORAGE_STEAM)."),
+	 .trait(name: "VulkanRenderer", description: "Enable the Vulkan render driver (CMake: SDL_RENDER_VULKAN=ON, which defines SDL_VIDEO_RENDER_VULKAN)."),
+	 */
 	dependencies: [
 		.package(url: "https://github.com/swiftlang/swift-subprocess", from: "1.0.0"),
 		.package(url: "https://github.com/apple/swift-system", from: "1.8.1"),
 	],
 	targets: [
-
-
+		
+		
 		// MARK: - Public Libraries
-
-		.target(
+		
+		.sdlTarget(
 			name: "SimpleDirectMediaLayer",
 			dependencies: [
-//				.byNameItem(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
+				//				.byNameItem(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
 				.byNameItem(name: "macOS", condition: .when(platforms: [.macOS])),
 				.byNameItem(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
 			],
-			path: ".",
-			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
-				+ contentsOfDirectory(path: "src/atomic", directories: true)
-				+ contentsOfDirectory(path: "src/audio", directories: true, exclude: ["disk", "dummy"])
-				+ contentsOfDirectory(path: "src/camera", directories: true, exclude: ["dummy"])
+			additionalExcludes:
+				contentsOfDirectory(path: "src/atomic", directories: true)
+				+ contentsOfDirectory(path: "src/audio", directories: true)
+				+ contentsOfDirectory(path: "src/camera", directories: true)
 				+ contentsOfDirectory(path: "src/core", directories: true)
 				+ contentsOfDirectory(path: "src/cpuinfo", directories: true)
 				+ contentsOfDirectory(path: "src/dialog", directories: true)
 				+ contentsOfDirectory(path: "src/dynapi", files: true, withExtensions: ["exports", "sym", "py"], directories: true)
 				+ contentsOfDirectory(path: "src/events", directories: true)
 				+ contentsOfDirectory(path: "src/filesystem", directories: true)
-				+ contentsOfDirectory(path: "src/gpu", directories: true, exclude: ["vulkan", "xr"])
-				+ contentsOfDirectory(path: "src/haptic", directories: true, exclude: ["hidapi"])
+				+ contentsOfDirectory(path: "src/gpu", directories: true, except: ["vulkan", "xr"])
+				+ contentsOfDirectory(path: "src/haptic", directories: true, except: ["hidapi"])
 				+ contentsOfDirectory(path: "src/hidapi", files: true, withExtensions: ["txt", "md", "am", "ac", "build", ""], directories: true)
-				+ contentsOfDirectory(path: "src/io", directories: true, exclude: ["generic"])
-				+ contentsOfDirectory(path: "src/joystick", files: true, withExtensions: ["sh", "py"], directories: true, exclude: ["hidapi", "virtual"])
+				+ contentsOfDirectory(path: "src/io", directories: true, except: ["generic"])
+				+ contentsOfDirectory(path: "src/joystick", files: true, withExtensions: ["sh", "py"], directories: true, except: ["hidapi", "virtual"])
 				+ contentsOfDirectory(path: "src/libm", directories: true)
 				+ contentsOfDirectory(path: "src/loadso", directories: true)
 				+ contentsOfDirectory(path: "src/locale", directories: true)
-				+ contentsOfDirectory(path: "src/main", directories: true, exclude: ["generic"])
+				+ contentsOfDirectory(path: "src/main", directories: true, except: ["generic"])
 				+ contentsOfDirectory(path: "src/misc", directories: true)
 				+ contentsOfDirectory(path: "src/notification", directories: true)
 				+ contentsOfDirectory(path: "src/power", directories: true)
@@ -168,118 +480,96 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/render/software", directories: true)
 				+ contentsOfDirectory(path: "src/render/vitagxm", directories: true)
 				+ contentsOfDirectory(path: "src/render/vulkan", files: true, withExtensions: ["bat", "hlsl", "hlsli"], directories: true)
-				+ contentsOfDirectory(path: "src/sensor", directories: true, exclude: ["dummy"])
+				+ contentsOfDirectory(path: "src/sensor", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/stdlib", files: true, withExtensions: ["masm"], directories: true)
-				+ contentsOfDirectory(path: "src/storage", directories: true, exclude: ["generic", "steam"])
+				+ contentsOfDirectory(path: "src/storage", directories: true, except: ["generic", "steam"])
 				+ contentsOfDirectory(path: "src/thread", directories: true)
 				+ contentsOfDirectory(path: "src/time", directories: true)
 				+ contentsOfDirectory(path: "src/timer", directories: true)
 				+ contentsOfDirectory(path: "src/tray", directories: true)
-				+ contentsOfDirectory(path: "src/video", files: true, withExtensions: ["pl"], directories: true, exclude: ["dummy", "offscreen", "yuv2rgb"])
+				+ contentsOfDirectory(path: "src/video", files: true, withExtensions: ["pl"], directories: true, except: ["dummy", "offscreen", "yuv2rgb"])
 				+ contentsOfDirectory(path: "src/video/yuv2rgb", files: true, withExtensions: ["md", ""])
 				+ [
+					"src/dialog/SDL_dialog_utils.c",
 					"src/test",
 				],
 			sources: [
 				"src"
 			],
 			publicHeadersPath: "include",
-			cSettings: [
+			additionalCSettings: [
 				.headerSearchPath("swift/Sources/SimpleDirectMediaLayer/include"),
-				.headerSearchPath("include/build_config"),
-				.headerSearchPath("src"),
-				.unsafeFlags(["-fno-modules"]),
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
 				.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/src/video/khronos"]),
-			] + enabledTraitDefines,
+			],
 			plugins: [
 				"BuildSDLRevisionHeaderPlugin",
 			]
 		),
-
-		// We need a wrapper target for this to use the export list properly
-		.target(
+		
+		// We need a wrapper target for this to use the exported symbols list properly
+		.sdlTarget(
 			name: "SimpleDirectMediaLayerDynamic",
 			dependencies: [
 				"SimpleDirectMediaLayer"
 			],
-			path: ".",
-			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["swift"])
-				+ contentsOfDirectory(path: "swift", files: true, directories: true, exclude: ["Sources"])
-				+ contentsOfDirectory(path: "swift/Sources", files: true, directories: true, exclude: ["SimpleDirectMediaLayerDynamic"]),
 			sources: [
 				"swift/Sources/SimpleDirectMediaLayerDynamic"
 			],
 			publicHeadersPath: "include",
-			linkerSettings: [
+			additionalLinkerSettings: [
 				.unsafeFlags(["-exported_symbols_list", "\(Context.packageDirectory)/src/dynapi/SDL_dynapi.exports"]),
 			],
 		),
 
-		// This is the SDL3_test library. Maybe rename it to that since it really isn't much of a swift facing interface.
+		// This is the SDL3_test library. It is not part of SDL, so it remains a normal target.
 		.target(
-			name: "SimpleDirectMediaLayerTest",
+			name: "SDL3_test",
 			dependencies: [
 				"SimpleDirectMediaLayer"
 			],
 			path: ".",
-			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
-				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude:["test"]),
+			exclude: createExcludePaths(for: ".", keeping: ["src/test"]),
 			sources: [
 				"src/test"
 			],
-			publicHeadersPath: "swift/Sources/SimpleDirectMediaLayerTest/include",
+			publicHeadersPath: "swift/Sources/SDL3_test/include",
 		),
 
 
-		// MARK: - Private Platform Libraries
-/*
-		.target(
-			name: "apple",
-			path: ".",
-			exclude: excludeList,
-			sources: [
-			],
-			publicHeadersPath: "swift/Sources/apple/include",
-			cSettings: [
-				.headerSearchPath("include"),
-				.headerSearchPath("include/build_config"),
-				.headerSearchPath("src"),
-				.headerSearchPath("src/video/khronos"),
-				.unsafeFlags(["-fno-modules"])
-			],
-		),
-*/
-		.target(
+		// MARK: - Platform Targets
+		/*
+		 .target(
+		 name: "apple",
+		 path: ".",
+		 exclude: excludeList,
+		 sources: [
+		 ],
+		 publicHeadersPath: "swift/Sources/apple/include",
+		 cSettings: [
+		 .headerSearchPath("include"),
+		 .headerSearchPath("include/build_config"),
+		 .headerSearchPath("src"),
+		 .headerSearchPath("src/video/khronos"),
+		 .unsafeFlags(["-fno-modules"])
+		 ],
+		 ),
+		 */
+
+		.sdlTarget(
 			name: "macOS",
-			path: ".",
-			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
-				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude: [
-					"audio", "camera", "dialog", "filesystem", "gpu", "haptic", "joystick", "locale", "misc", "notification", "power", "render", "tray", "video"
-				])
-				+ contentsOfDirectory(path: "src/audio", files: true, directories: true, exclude: ["coreaudio"])
-				+ contentsOfDirectory(path: "src/camera", files: true, directories: true, exclude: ["coremedia"])
-				+ contentsOfDirectory(path: "src/dialog", files: true, directories: true, exclude: ["cocoa"])
-				+ contentsOfDirectory(path: "src/filesystem", files: true, directories: true, exclude: ["cocoa"])
-				+ contentsOfDirectory(path: "src/gpu", files: true, directories: true, exclude: ["metal"])
-				+ contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"])
-				+ contentsOfDirectory(path: "src/haptic", files: true, directories: true, exclude: ["darwin"])
-				+ contentsOfDirectory(path: "src/joystick", files: true, directories: true, exclude: ["apple", "darwin"])
-				+ contentsOfDirectory(path: "src/locale", files: true, directories: true, exclude: ["macos"])
-				+ contentsOfDirectory(path: "src/misc", files: true, directories: true, exclude: ["macos"])
-				+ contentsOfDirectory(path: "src/notification", files: true, directories: true, exclude: ["cocoa"])
-				+ contentsOfDirectory(path: "src/power", files: true, directories: true, exclude: ["macos"])
-				+ contentsOfDirectory(path: "src/render", files: true, directories: true, exclude: ["metal"])
-				+ contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"])
-				+ contentsOfDirectory(path: "src/tray", files: true, directories: true, exclude: ["cocoa"])
-				+ contentsOfDirectory(path: "src/video", files: true, directories: true, exclude: ["cocoa"]),
+			dependencies: [
+				.targetItem(name: "audio_driver_coreaudio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverCoreAudio.name])),
+				.targetItem(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDisk.name])),
+				.targetItem(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDummy.name])),
+				.targetItem(name: "camera_driver_coremedia", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverCoreMedia.name])),
+				.targetItem(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverDummy.name])),
+				.targetItem(name: "dialog_cocoa", condition: .when(traits: [TraitDescription.enableDefaultDialog.name, TraitDescription.enableDialog.name])),
+			],
+			additionalExcludes:
+				contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"])
+				 + contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]),
 			sources: [
-				"src/audio/coreaudio",
-				"src/camera/coremedia",
-				"src/dialog/cocoa",
 				"src/filesystem/cocoa",
 				"src/gpu/metal",
 				"src/haptic/darwin",
@@ -293,25 +583,16 @@ let package = Package(
 				"src/tray/cocoa",
 				"src/video/cocoa",
 			],
-			publicHeadersPath: "swift/Sources/macOS/include",
-			cSettings: [
-				.headerSearchPath("include"),
-				.headerSearchPath("include/build_config"),
-				.headerSearchPath("src"),
+			additionalCSettings: [
 				.headerSearchPath("src/video/khronos"),
-				.unsafeFlags(["-fno-modules"]),
-			] + enabledTraitDefines,
-			linkerSettings: [
-				.linkedFramework("AVFoundation"),
+			],
+			additionalLinkerSettings: [
 				.linkedFramework("AppKit"),
-				.linkedFramework("AudioToolbox"),
 				.linkedFramework("Carbon"),
-				.linkedFramework("CoreAudio"),
-				.linkedFramework("CoreFoundation"),
-				.linkedFramework("CoreGraphics"),
-				.linkedFramework("CoreHaptics"),
-				.linkedFramework("CoreMedia"),
-				.linkedFramework("CoreVideo"),
+				//				.linkedFramework("CoreFoundation"),
+				//				.linkedFramework("CoreGraphics"),
+					.linkedFramework("CoreHaptics"),
+				//				.linkedFramework("CoreVideo"),
 				.linkedFramework("ForceFeedback"),
 				.linkedFramework("GameController"),
 				.linkedFramework("IOKit"),
@@ -323,19 +604,8 @@ let package = Package(
 			],
 		),
 
-		.target(
+		.sdlTarget(
 			name: "posix",
-			path: ".",
-			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["src"])
-				+ contentsOfDirectory(path: "src", files: true, directories: true, exclude: ["core", "filesystem", "loadso", "process", "thread", "time", "timer"])
-				+ contentsOfDirectory(path: "src/core", files: true, directories: true, exclude: ["unix"])
-				+ contentsOfDirectory(path: "src/filesystem", files: true, directories: true, exclude: ["posix"])
-				+ contentsOfDirectory(path: "src/loadso", files: true, directories: true, exclude: ["dlopen"])
-				+ contentsOfDirectory(path: "src/process", files: true, directories: true, exclude: ["posix"])
-				+ contentsOfDirectory(path: "src/thread", files: true, directories: true, exclude: ["pthread"])
-				+ contentsOfDirectory(path: "src/time", files: true, directories: true, exclude: ["unix"])
-				+ contentsOfDirectory(path: "src/timer", files: true, directories: true, exclude: ["unix"]),
 			sources: [
 				"src/core/unix",
 				"src/filesystem/posix",
@@ -345,43 +615,34 @@ let package = Package(
 				"src/time/unix",
 				"src/timer/unix",
 			],
-			publicHeadersPath: "swift/Sources/posix/include",
-			cSettings: [
-				.headerSearchPath("include"),
-				.headerSearchPath("include/build_config"),
-				.headerSearchPath("src"),
-				.unsafeFlags(["-fno-modules"]),
-			] + enabledTraitDefines,
 		),
 
 
-		// MARK: - Helper Libraries
+		// MARK: - Subsystem Backend Targets
 
-		.target(
-			name: "BundleHelpers",
-			path: "swift/Sources/BundleHelpers",
-		),
+		.sdlTarget(name: "audio_driver_coreaudio", sources: ["src/audio/coreaudio"], additionalLinkerSettings: [.linkedFramework("AudioToolbox"), .linkedFramework("CoreAudio")]),
+		.sdlTarget(name: "audio_driver_disk", sources: ["src/audio/disk"]),
+		.sdlTarget(name: "audio_driver_dummy", sources: ["src/audio/dummy"]),
+		.sdlTarget(name: "camera_driver_coremedia", sources: ["src/camera/coremedia"], additionalLinkerSettings: [.linkedFramework("AVFoundation"), .linkedFramework("CoreMedia")]),
+		.sdlTarget(name: "camera_driver_dummy", sources: ["src/camera/dummy"]),
+		.sdlTarget(name: "dialog_cocoa", dependencies: ["dialog_utils"], sources: ["src/dialog/cocoa"], additionalLinkerSettings: [.linkedFramework("AppKit")]),
+		.sdlTarget(name: "dialog_utils", sources: ["src/dialog/SDL_dialog_utils.c"]),
 
-		.target(
-			name: "testutils",
+
+		// MARK: - SimpleDirectMediaLayerTests
+
+		.testTarget(
+			name: "SimpleDirectMediaLayerTests",
 			dependencies: [
-				"TestResources"
+				"SimpleDirectMediaLayer",
+				.product(name: "Subprocess", package: "swift-subprocess"),
+				.product(name: "SystemPackage", package: "swift-system"),
 			],
-			path: ".",
-			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["test"])
-				+ contentsOfDirectory(path: "test", files: true, directories: true, exclude: ["testutils.c"]),
-			sources: [
-				"test/testutils.c",
-			],
-			publicHeadersPath: "swift/Sources/testutils/include",
-			cSettings: [
-				.headerSearchPath("include"),
-			],
+			path: "swift/Tests/SimpleDirectMediaLayerTests",
 		),
 
 
-		// MARK: - SDL Tests Executables
+		// MARK: - SDL Test Executables used by SimpleDirectMediaLayerTests
 
 		.sdlTestExecutable(name: "childprocess"),
 		.sdlTestExecutable(name: "pretest"),
@@ -414,10 +675,10 @@ let package = Package(
 			"testautomation_time.c",
 			"testautomation_timer.c",
 			"testautomation_video.c",
-		], additionalCSettings: buildDependentSettings),
+		], additionalCSettings: buildDependentCSettings),
 		.sdlTestExecutable(name: "testbounds"),
 		.sdlTestExecutable(name: "testerror"),
-		.sdlTestExecutable(name: "testevdev", additionalCSettings: buildDependentSettings),
+		.sdlTestExecutable(name: "testevdev", additionalCSettings: buildDependentCSettings),
 		.sdlTestExecutable(name: "testfile"),
 		.sdlTestExecutable(name: "testfilesystem"),
 		.sdlTestExecutable(name: "testlocale"),
@@ -433,27 +694,9 @@ let package = Package(
 		.sdlTestExecutable(name: "testver"),
 		.sdlTestExecutable(name: "testyuv", additionalDependencies: ["testutils"], additionalSources: ["testyuv_cvt.c"]),
 		.sdlTestExecutable(name: "torturethread"),
-
-
-		// MARK: - Other SDL Test Executables
-
-		// Provides the files used by the test executables
-		.target(
-			name: "TestResources",
-			dependencies: [
-				"BundleHelpers",
-			],
-			path: ".",
-			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["swift", "test"])
-				+ contentsOfDirectory(path: "swift", files: true, directories: true, exclude: ["Sources"])
-				+ contentsOfDirectory(path: "swift/Sources", files: true, directories: true, exclude: ["TestResources"])
-				+ contentsOfDirectory(path: "test", files: true, withExtensions: ["c", "cpp", "dat", "h", "hlsl", "in", "m", "markdown", "sh", "txt", "xbm", ""], directories: true, exclude: ["moose.dat", "utf8.txt"]),
-			sources: [
-				"swift/Sources/TestResources",
-			],
-			resources: (contentsOfDirectory(path: "test", files: true, withExtensions: ["png", "wav", "csv", "hex"]) + ["test/moose.dat", "test/utf8.txt"]).map { .copy($0) }
-		),
+		
+		
+		// MARK: - Standalone SDL Test Executables
 
 		.sdlTestExecutable(name: "checkkeys"),
 		.sdlTestExecutable(name: "loopwave", additionalDependencies: ["testutils"]),
@@ -468,7 +711,7 @@ let package = Package(
 		.sdlTestExecutable(name: "testcolorspace"),
 		.sdlTestExecutable(name: "testcontroller", additionalDependencies: ["testutils"], additionalSources: ["gamepadutils.c"]),
 		.sdlTestExecutable(name: "testcustomcursor"),
-		.sdlTestExecutable(name: "testdescriptor", additionalCSettings: buildDependentSettings),
+		.sdlTestExecutable(name: "testdescriptor", additionalCSettings: buildDependentCSettings + [.define("DEBUG_DESCRIPTOR")]),
 		.sdlTestExecutable(name: "testdialog"),
 		.sdlTestExecutable(name: "testdisplayinfo"),
 		.sdlTestExecutable(name: "testdlopennote", additionalDependencies: ["testutils"]),
@@ -477,7 +720,11 @@ let package = Package(
 		.sdlTestExecutable(name: "testdropfile"),
 //		.sdlTestExecutable(name: "testffmpeg", additionalSources: ["testffmpeg_vulkan.c"]),	// Requires FFmpeg > 5.1.3, can we #define around it?
 		.sdlTestExecutable(name: "testgeometry", additionalDependencies: ["testutils"]),
-		.sdlTestExecutable(name: "testgl", additionalLinkerSettings: [.linkedFramework("OpenGL")]),
+		.sdlTestExecutable(
+			name: "testgl",
+			additionalCSettings: [.define("HAVE_OPENGL", .when(platforms: [.macOS, .linux, .windows]))],
+			additionalLinkerSettings: [.linkedFramework("OpenGL", .when(platforms: [.macOS]))]
+		),
 		.sdlTestExecutable(name: "testgles"),
 		.sdlTestExecutable(name: "testgles2"),
 		.sdlTestExecutable(name: "testgpu_simple_clear"),
@@ -503,14 +750,14 @@ let package = Package(
 			name: "testnative",
 			additionalDependencies: ["testutils", "TestResources"],
 			additionalSources: ["testnativecocoa.m", "testnativex11.c"],
-			additionalCSettings: buildDependentSettings + [.unsafeFlags(["-fno-objc-arc"])],
+			additionalCSettings: buildDependentCSettings + [.unsafeFlags(["-fno-objc-arc"])],
 		),
 		.sdlTestExecutable(name: "testnotification", additionalDependencies: ["TestResources"]),
 		.sdlTestExecutable(name: "testoffscreen"),
 		.sdlTestExecutable(name: "testoverlay", additionalDependencies: ["testutils", "TestResources"]),
 		.sdlTestExecutable(name: "testpalette"),
 		.sdlTestExecutable(name: "testpen"),
-		.sdlTestExecutable(name: "testpopup"),		// Has a main thread issue!!!!
+		.sdlTestExecutable(name: "testpopup"),
 		.sdlTestExecutable(name: "testrelative"),
 		.sdlTestExecutable(name: "testrendercopyex", additionalDependencies: ["testutils", "TestResources"], additionalCSettings: [.unsafeFlags(["-fno-modules"])]),
 		.sdlTestExecutable(name: "testrendertarget", additionalDependencies: ["testutils", "TestResources"], additionalCSettings: [.unsafeFlags(["-fno-modules"])]),
@@ -519,7 +766,12 @@ let package = Package(
 		.sdlTestExecutable(name: "testrumble"),
 		.sdlTestExecutable(name: "testscale", additionalDependencies: ["testutils", "TestResources"], additionalCSettings: [.unsafeFlags(["-fno-modules"])]),
 		.sdlTestExecutable(name: "testsensor"),
-		.sdlTestExecutable(name: "testshader", additionalDependencies: ["testutils", "TestResources"], additionalLinkerSettings: [.linkedFramework("OpenGL")]),
+		.sdlTestExecutable(
+			name: "testshader",
+			additionalDependencies: ["testutils", "TestResources"],
+			additionalCSettings: [.define("HAVE_OPENGL", .when(platforms: [.macOS, .linux, .windows]))],
+			additionalLinkerSettings: [.linkedFramework("OpenGL", .when(platforms: [.macOS]))]
+		),
 		.sdlTestExecutable(name: "testshape", additionalDependencies: ["TestResources"]),
 		.sdlTestExecutable(name: "testsoftwaretransparent"),
 		.sdlTestExecutable(name: "testsprite", additionalDependencies: ["testutils", "TestResources"]),
@@ -536,45 +788,44 @@ let package = Package(
 		.sdlTestExecutable(name: "testwm"),
 
 
-		// MARK: - SimpleDirectMediaLayerTests
+		// MARK: - Resource Files used by Standalone SDL Test Executables
 
-		.testTarget(
-			name: "SimpleDirectMediaLayerTests",
-			dependencies: [
-				"SimpleDirectMediaLayer",
-				.product(name: "Subprocess", package: "swift-subprocess"),
-				.product(name: "SystemPackage", package: "swift-system"),
-			],
-			path: "swift/Tests/SimpleDirectMediaLayerTests",
-		),
-
-
-		// MARK: - SDL Example Executables
-
-		// Provides the files used by the example executables
 		.target(
-			name: "ExampleResources",
+			name: "TestResources",
 			dependencies: [
 				"BundleHelpers",
 			],
 			path: ".",
 			exclude:
-				contentsOfDirectory(path: ".", files: true, directories: true, exclude: ["swift", "test"])
-				+ contentsOfDirectory(path: "swift", files: true, directories: true, exclude: ["Sources"])
-				+ contentsOfDirectory(path: "swift/Sources", files: true, directories: true, exclude: ["ExampleResources"])
-				+ contentsOfDirectory(path: "test", files: true, directories: true, exclude: ["sample.png", "speaker.png", "icon2x.png", "sample.wav","sword.wav"]),
+				createExcludePaths(for: ".", keeping: ["swift/Sources/TestResources", "swift/test"])
+			+ contentsOfDirectory(path: "test", files: true, withExtensions: ["c", "cpp", "dat", "h", "hlsl", "in", "m", "markdown", "sh", "txt", "xbm", ""], directories: true, except: ["moose.dat", "utf8.txt"]),
 			sources: [
-				"swift/Sources/ExampleResources",
+				"swift/Sources/TestResources",
 			],
-			resources: [
-				.copy("test/sample.png"),
-				.copy("test/gamepad_front.png"),
-				.copy("test/speaker.png"),
-				.copy("test/icon2x.png"),
-				.copy("test/sample.wav"),
-				.copy("test/sword.wav"),
-			]
+			resources: (contentsOfDirectory(path: "test", files: true, withExtensions: ["png", "wav", "csv", "hex"]) + ["test/moose.dat", "test/utf8.txt"]).map { .copy($0) }
 		),
+
+
+		// MARK: - testutils Library used by SDL Test Executables
+
+		.target(
+			name: "testutils",
+			dependencies: [
+				"TestResources"
+			],
+			path: ".",
+			exclude: createExcludePaths(for: ".", keeping: ["test/testutils.c"]),
+			sources: [
+				"test/testutils.c",
+			],
+			publicHeadersPath: "swift/Sources/testutils/include",
+			cSettings: [
+				.headerSearchPath("include"),
+			],
+		),
+
+
+		// MARK: - SDL Example Executables
 
 		.sdlExampleExecutable(name: "asyncio-load-bitmaps", sources: ["asyncio/01-load-bitmaps/load-bitmaps.c"], additionalDependencies: ["ExampleResources"]),
 		.sdlExampleExecutable(name: "audio-load-wav", sources: ["audio/03-load-wav/load-wav.c"], additionalDependencies: ["ExampleResources"]),
@@ -616,6 +867,45 @@ let package = Package(
 		.sdlExampleExecutable(name: "storage-user", sources: ["storage/01-user/user.c"]),
 
 
+		// MARK: - Resource Files used by SDL Example Executables
+
+		.target(
+			name: "ExampleResources",
+			dependencies: [
+				"BundleHelpers",
+			],
+			path: ".",
+			exclude: createExcludePaths(for: ".", keeping: [
+				"swift/Sources/ExampleResources",
+				"test/sample.png",
+				"test/gamepad_front.png",
+				"test/speaker.png",
+				"test/icon2x.png",
+				"test/sample.wav",
+				"test/sword.wav",
+			]),
+			sources: [
+				"swift/Sources/ExampleResources",
+			],
+			resources: [
+				.copy("test/sample.png"),
+				.copy("test/gamepad_front.png"),
+				.copy("test/speaker.png"),
+				.copy("test/icon2x.png"),
+				.copy("test/sample.wav"),
+				.copy("test/sword.wav"),
+			]
+		),
+
+
+		// MARK: - Bundle Helpers used by TestResources and ExampleResources
+
+		.target(
+			name: "BundleHelpers",
+			path: "swift/Sources/BundleHelpers",
+		),
+
+
 		// MARK: - Build Plugins
 
 		.plugin(
@@ -626,4 +916,3 @@ let package = Package(
 
 	]
 )
-
