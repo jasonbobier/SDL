@@ -77,15 +77,15 @@ extension Target {
 		)
 	}
 
-	static func sdlTarget(name: String, dependencies: [Target.Dependency] = [], path: String = ".", additionalExcludes: [String] = [], sources: [String], copyResources: [String]? = nil, publicHeadersPath: String? = nil, additionalCSettings: [CSetting] = [], additionalLinkerSettings: [LinkerSetting] = [], plugins: [Target.PluginUsage]? = nil) -> Target {
+	static func sdlTarget(name: String, dependencies: [Target.Dependency] = [], additionalExcludes: [String] = [], sources: [String], copyResources: [String]? = nil, publicHeadersPath: String? = nil, additionalCSettings: [CSetting] = [], additionalLinkerSettings: [LinkerSetting] = [], plugins: [Target.PluginUsage]? = nil) -> Target {
 		let publicHeadersPath = publicHeadersPath ?? "swift/Sources/\(name)/include"
 		let includedPaths = sources + (copyResources ?? [])
 
 		return .target(
 			name: name,
 			dependencies: dependencies,
-			path: path,
-			exclude: createExcludePaths(for: path, keeping: includedPaths) + additionalExcludes,
+			path: ".",
+			exclude: createExcludePaths(for: ".", keeping: includedPaths) + additionalExcludes,
 			sources: sources,
 			resources: copyResources?.map { .copy($0) },
 			publicHeadersPath: publicHeadersPath,
@@ -95,6 +95,7 @@ extension Target {
 				.headerSearchPath("include/build_config"),
 				.headerSearchPath("src"),
 				.unsafeFlags(["-fno-modules"]),
+				.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/src/video/khronos"]),
 			] + additionalCSettings + TraitDescription.allCSettings,
 			linkerSettings: additionalLinkerSettings,
 			plugins: plugins
@@ -241,6 +242,15 @@ struct TraitDescription {
 		enableCameraDriverDummy,
 		enableDefaultDialog,
 		enableDialog,
+		enableDefaultVideo,
+		enableVideo,
+		enableVideoDriverCocoa,
+		enableVideoDriverDummy,
+		enableVideoDriverOffscreen,
+		enableVideoOpenGL,
+		enableVideoOpenGLES,
+		enableVideoMetal,
+		enableVideoVulkan,
 	]
 
 	static var allTraits: [Trait] {
@@ -303,6 +313,16 @@ struct TraitDescription {
 
 		// Dialog Subsystem Defines
 		static let sdlSwiftPMDialogEnabled = "SDL_SWIFTPM_DIALOG_ENABLED"
+
+		// Video Subsystem Defines
+		static let sdlSwiftPMVideoEnabled = "SDL_SWIFTPM_VIDEO_ENABLED"
+		static let sdlSwiftPMVideoDriverCocoaEnabled = "SDL_SWIFTPM_VIDEO_DRIVER_COCOA_ENABLED"
+		static let sdlSwiftPMVideoDriverDummyEnabled = "SDL_SWIFTPM_VIDEO_DRIVER_DUMMY_ENABLED"
+		static let sdlSwiftPMVideoDriverOffscreenEnabled = "SDL_SWIFTPM_VIDEO_DRIVER_OFFSCREEN_ENABLED"
+		static let sdlSwiftPMVideoMetalEnabled = "SDL_SWIFTPM_VIDEO_METAL_ENABLED"
+		static let sdlSwiftPMVideoOpenGLEnabled = "SDL_SWIFTPM_VIDEO_OPENGL_ENABLED"
+		static let sdlSwiftPMVideoOpenGLESEnabled = "SDL_SWIFTPM_VIDEO_OPENGLES_ENABLED"
+		static let sdlSwiftPMVideoVulkanEnabled = "SDL_SWIFTPM_VIDEO_VULKAN_ENABLED"
 	}
 
 
@@ -389,6 +409,72 @@ struct TraitDescription {
 		name: "EnableDialog",
 		description: "Enable the dialog subsystem (CMake: SDL_DIALOG=ON).",
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMDialogEnabled)]
+	)
+
+
+	// Video Subsystem Traits
+
+	static let enableDefaultVideo = TraitDescription(
+		name: "EnableDefaultVideo",
+		description: "Enable the default video subsystem and drivers for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMVideoEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoDriverCocoaEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoDriverDummyEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoDriverOffscreenEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoOpenGLEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableVideo = TraitDescription(
+		name: "EnableVideo",
+		description: "Enable the video subsystem (CMake: SDL_VIDEO=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoEnabled)]
+	)
+	static let enableVideoDriverCocoa = TraitDescription(
+		name: "EnableVideoDriverCocoa",
+		description: "Enable the Cocoa driver for the video subsystem (CMake: SDL_COCOA=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoDriverCocoaEnabled)]
+	)
+	static let enableVideoDriverDummy = TraitDescription(
+		name: "EnableVideoDriverDummy",
+		description: "Enable the dummy driver for the video subsystem (CMake: SDL_DUMMYVIDEO=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoDriverDummyEnabled)],
+	)
+	static let enableVideoDriverOffscreen = TraitDescription(
+		name: "EnableVideoDriverOffscreen",
+		description: "Enable the offscreen driver for the video subsystem (CMake: SDL_OFFSCREEN=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoDriverOffscreenEnabled)],
+	)
+	static let enableVideoMetal = TraitDescription(
+		name: "EnableVideoMetal",
+		description: "Enable Metal support for the video subsystem (CMake: SDL_METAL=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled)],
+	)
+	static let enableVideoOpenGL = TraitDescription(
+		name: "EnableVideoOpenGL",
+		description: "Enable OpenGL support for the video subsystem (CMake: SDL_OPENGL=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLEnabled)],
+	)
+	static let enableVideoOpenGLES = TraitDescription(
+		name: "EnableVideoOpenGLES",
+		description: "Enable OpenGL ES support for the video subsystem (CMake: SDL_OPENGLES=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled)],
+	)
+	static let enableVideoVulkan = TraitDescription(
+		name: "EnableVideoVulkan",
+		description: "Enable Vulkan support for the video subsystem (CMake: SDL_VULKAN=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled)],
 	)
 }
 
@@ -487,7 +573,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/time", directories: true)
 				+ contentsOfDirectory(path: "src/timer", directories: true)
 				+ contentsOfDirectory(path: "src/tray", directories: true)
-				+ contentsOfDirectory(path: "src/video", files: true, withExtensions: ["pl"], directories: true, except: ["dummy", "offscreen", "yuv2rgb"])
+				+ contentsOfDirectory(path: "src/video", files: true, withExtensions: ["pl"], directories: true, except: ["yuv2rgb"])
 				+ contentsOfDirectory(path: "src/video/yuv2rgb", files: true, withExtensions: ["md", ""])
 				+ [
 					"src/dialog/SDL_dialog_utils.c",
@@ -500,7 +586,6 @@ let package = Package(
 			additionalCSettings: [
 				.headerSearchPath("swift/Sources/SimpleDirectMediaLayer/include"),
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
-				.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/src/video/khronos"]),
 			],
 			plugins: [
 				"BuildSDLRevisionHeaderPlugin",
@@ -565,6 +650,9 @@ let package = Package(
 				.targetItem(name: "camera_driver_coremedia", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverCoreMedia.name])),
 				.targetItem(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverDummy.name])),
 				.targetItem(name: "dialog_cocoa", condition: .when(traits: [TraitDescription.enableDefaultDialog.name, TraitDescription.enableDialog.name])),
+				.targetItem(name: "video_driver_cocoa", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverCocoa.name])),
+				.targetItem(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverDummy.name])),
+				.targetItem(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverOffscreen.name])),
 			],
 			additionalExcludes:
 				contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"])
@@ -581,10 +669,6 @@ let package = Package(
 				"src/power/macos",
 				"src/render/metal",
 				"src/tray/cocoa",
-				"src/video/cocoa",
-			],
-			additionalCSettings: [
-				.headerSearchPath("src/video/khronos"),
 			],
 			additionalLinkerSettings: [
 				.linkedFramework("AppKit"),
@@ -627,6 +711,9 @@ let package = Package(
 		.sdlTarget(name: "camera_driver_dummy", sources: ["src/camera/dummy"]),
 		.sdlTarget(name: "dialog_cocoa", dependencies: ["dialog_utils"], sources: ["src/dialog/cocoa"], additionalLinkerSettings: [.linkedFramework("AppKit")]),
 		.sdlTarget(name: "dialog_utils", sources: ["src/dialog/SDL_dialog_utils.c"]),
+		.sdlTarget(name: "video_driver_cocoa", sources: ["src/video/cocoa"], additionalLinkerSettings: []),
+		.sdlTarget(name: "video_driver_dummy", sources: ["src/video/dummy"]),
+		.sdlTarget(name: "video_driver_offscreen", sources: ["src/video/offscreen"]),
 
 
 		// MARK: - SimpleDirectMediaLayerTests
