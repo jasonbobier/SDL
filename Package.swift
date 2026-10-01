@@ -51,8 +51,8 @@ extension Target {
 		.executableTarget(
 			name: name,
 			dependencies: [
-				"SimpleDirectMediaLayer",
-				"SDL3_test",
+				.target(name: "SimpleDirectMediaLayer"),
+				.target(name: "SDL3_test"),
 			] + additionalDependencies,
 			path: "test",
 			sources: (sources ?? [name + ".c"]) + additionalSources,
@@ -70,7 +70,7 @@ extension Target {
 		.executableTarget(
 			name: name,
 			dependencies: [
-				"SimpleDirectMediaLayer"
+				.target(name: "SimpleDirectMediaLayer"),
 			] + additionalDependencies,
 			path: "examples",
 			sources: sources,
@@ -236,12 +236,19 @@ struct TraitDescription {
 		enableAudioDriverCoreAudio,
 		enableAudioDriverDisk,
 		enableAudioDriverDummy,
+
 		enableDefaultCamera,
 		enableCamera,
 		enableCameraDriverCoreMedia,
 		enableCameraDriverDummy,
+
 		enableDefaultDialog,
 		enableDialog,
+
+		enableDefaultGPU,
+		enableGPU,
+		enableGPUOpenXR,
+
 		enableDefaultVideo,
 		enableVideo,
 		enableVideoDriverCocoa,
@@ -313,6 +320,10 @@ struct TraitDescription {
 
 		// Dialog Subsystem Defines
 		static let sdlSwiftPMDialogEnabled = "SDL_SWIFTPM_DIALOG_ENABLED"
+
+		// GPU Subsystem Defines
+		static let sdlSwiftPMGPUEnabled = "SDL_SWIFTPM_GPU_ENABLED"
+		static let sdlSwiftPMGPUOpenXREnabled = "SDL_SWIFTPM_GPU_OPENXR_ENABLED"
 
 		// Video Subsystem Defines
 		static let sdlSwiftPMVideoEnabled = "SDL_SWIFTPM_VIDEO_ENABLED"
@@ -409,6 +420,29 @@ struct TraitDescription {
 		name: "EnableDialog",
 		description: "Enable the dialog subsystem (CMake: SDL_DIALOG=ON).",
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMDialogEnabled)]
+	)
+
+
+	// GPU Subsystem Traits
+	static let enableDefaultGPU = TraitDescription(
+		name: "EnableDefaultGPU",
+		description: "Enable the default GPU subsystem and drivers for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMGPUEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableGPU = TraitDescription(
+		name: "EnableGPU",
+		description: "Enable the GPU subsystem (CMake: SDL_GPU=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMGPUEnabled)]
+	)
+	static let enableGPUOpenXR = TraitDescription(
+		name: "EnableGPUOpenXR",
+		description: "Enable OpenXR support for the GPU subsystem (CMake: SDL_GPU_OPENXR=ON).",
+		enabledTraits: [enableGPU.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMGPUOpenXREnabled)],
 	)
 
 
@@ -525,9 +559,9 @@ let package = Package(
 		.sdlTarget(
 			name: "SimpleDirectMediaLayer",
 			dependencies: [
-				//				.byNameItem(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
-				.byNameItem(name: "macOS", condition: .when(platforms: [.macOS])),
-				.byNameItem(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
+				//				.target(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
+				.target(name: "macOS", condition: .when(platforms: [.macOS])),
+				.target(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
 			],
 			additionalExcludes:
 				contentsOfDirectory(path: "src/atomic", directories: true)
@@ -539,7 +573,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/dynapi", files: true, withExtensions: ["exports", "sym", "py"], directories: true)
 				+ contentsOfDirectory(path: "src/events", directories: true)
 				+ contentsOfDirectory(path: "src/filesystem", directories: true)
-				+ contentsOfDirectory(path: "src/gpu", directories: true, except: ["vulkan", "xr"])
+				+ contentsOfDirectory(path: "src/gpu", directories: true, except: ["xr"])
 				+ contentsOfDirectory(path: "src/haptic", directories: true, except: ["hidapi"])
 				+ contentsOfDirectory(path: "src/hidapi", files: true, withExtensions: ["txt", "md", "am", "ac", "build", ""], directories: true)
 				+ contentsOfDirectory(path: "src/io", directories: true, except: ["generic"])
@@ -596,7 +630,7 @@ let package = Package(
 		.sdlTarget(
 			name: "SimpleDirectMediaLayerDynamic",
 			dependencies: [
-				"SimpleDirectMediaLayer"
+				.target(name: "SimpleDirectMediaLayer")
 			],
 			sources: [
 				"swift/Sources/SimpleDirectMediaLayerDynamic"
@@ -611,7 +645,7 @@ let package = Package(
 		.target(
 			name: "SDL3_test",
 			dependencies: [
-				"SimpleDirectMediaLayer"
+				.target(name: "SimpleDirectMediaLayer")
 			],
 			path: ".",
 			exclude: createExcludePaths(for: ".", keeping: ["src/test"]),
@@ -644,22 +678,20 @@ let package = Package(
 		.sdlTarget(
 			name: "macOS",
 			dependencies: [
-				.targetItem(name: "audio_driver_coreaudio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverCoreAudio.name])),
-				.targetItem(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDisk.name])),
-				.targetItem(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDummy.name])),
-				.targetItem(name: "camera_driver_coremedia", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverCoreMedia.name])),
-				.targetItem(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverDummy.name])),
-				.targetItem(name: "dialog_cocoa", condition: .when(traits: [TraitDescription.enableDefaultDialog.name, TraitDescription.enableDialog.name])),
-				.targetItem(name: "video_driver_cocoa", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverCocoa.name])),
-				.targetItem(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverDummy.name])),
-				.targetItem(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverOffscreen.name])),
+				.target(name: "audio_driver_coreaudio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverCoreAudio.name])),
+				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDisk.name])),
+				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDummy.name])),
+				.target(name: "camera_driver_coremedia", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverCoreMedia.name])),
+				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverDummy.name])),
+				.target(name: "dialog_cocoa", condition: .when(traits: [TraitDescription.enableDefaultDialog.name, TraitDescription.enableDialog.name])),
+				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableDefaultGPU.name, TraitDescription.enableGPU.name])),
+				.target(name: "video_driver_cocoa", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverCocoa.name])),
+				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverDummy.name])),
+				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverOffscreen.name])),
 			],
-			additionalExcludes:
-				contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"])
-				 + contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]),
+			additionalExcludes: contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]),
 			sources: [
 				"src/filesystem/cocoa",
-				"src/gpu/metal",
 				"src/haptic/darwin",
 				"src/joystick/apple",
 				"src/joystick/darwin",
@@ -702,6 +734,18 @@ let package = Package(
 		),
 
 
+		// MARK: - Subsystem Targets
+
+		.sdlTarget(
+			name: "gpu",
+			dependencies: [
+				.target(name: "gpu_metal", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoMetal.name])),
+				.target(name: "gpu_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoVulkan.name])),
+			],
+			sources: ["swift/Sources/gpu"],
+		),
+
+
 		// MARK: - Subsystem Backend Targets
 
 		.sdlTarget(name: "audio_driver_coreaudio", sources: ["src/audio/coreaudio"], additionalLinkerSettings: [.linkedFramework("AudioToolbox"), .linkedFramework("CoreAudio")]),
@@ -711,6 +755,12 @@ let package = Package(
 		.sdlTarget(name: "camera_driver_dummy", sources: ["src/camera/dummy"]),
 		.sdlTarget(name: "dialog_cocoa", dependencies: ["dialog_utils"], sources: ["src/dialog/cocoa"], additionalLinkerSettings: [.linkedFramework("AppKit")]),
 		.sdlTarget(name: "dialog_utils", sources: ["src/dialog/SDL_dialog_utils.c"]),
+		.sdlTarget(
+			name: "gpu_metal",
+			additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]),
+			sources: ["src/gpu/metal"]
+		),
+		.sdlTarget(name: "gpu_vulkan", sources: ["src/gpu/vulkan"]),
 		.sdlTarget(name: "video_driver_cocoa", sources: ["src/video/cocoa"], additionalLinkerSettings: []),
 		.sdlTarget(name: "video_driver_dummy", sources: ["src/video/dummy"]),
 		.sdlTarget(name: "video_driver_offscreen", sources: ["src/video/offscreen"]),
@@ -721,7 +771,7 @@ let package = Package(
 		.testTarget(
 			name: "SimpleDirectMediaLayerTests",
 			dependencies: [
-				"SimpleDirectMediaLayer",
+				.target(name: "SimpleDirectMediaLayer"),
 				.product(name: "Subprocess", package: "swift-subprocess"),
 				.product(name: "SystemPackage", package: "swift-system"),
 			],
@@ -880,7 +930,7 @@ let package = Package(
 		.target(
 			name: "TestResources",
 			dependencies: [
-				"BundleHelpers",
+				.target(name: "BundleHelpers")
 			],
 			path: ".",
 			exclude:
@@ -898,7 +948,7 @@ let package = Package(
 		.target(
 			name: "testutils",
 			dependencies: [
-				"TestResources"
+				.target(name: "TestResources")
 			],
 			path: ".",
 			exclude: createExcludePaths(for: ".", keeping: ["test/testutils.c"]),
@@ -959,7 +1009,7 @@ let package = Package(
 		.target(
 			name: "ExampleResources",
 			dependencies: [
-				"BundleHelpers",
+				.target(name: "BundleHelpers")
 			],
 			path: ".",
 			exclude: createExcludePaths(for: ".", keeping: [

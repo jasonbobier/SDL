@@ -24,7 +24,7 @@
 
 #include_next "SDL_build_config.h"
 
-// MARK: - Audio subsystem
+// MARK: - Audio Subsystem
 
 #undef SDL_AUDIO_DISABLED
 #undef SDL_AUDIO_DRIVER_AAUDIO
@@ -75,7 +75,7 @@
 #endif
 
 
-// MARK: - Camera subsystem
+// MARK: - Camera Subsystem
 
 #undef SDL_CAMERA_DISABLED
 #undef SDL_CAMERA_DRIVER_ANDROID
@@ -103,7 +103,7 @@
 #endif
 
 
-// MARK: - Dialog subsystem
+// MARK: - Dialog Subsystem
 #undef SDL_DIALOG_DISABLED
 #undef SDL_DIALOG_DUMMY
 
@@ -112,7 +112,31 @@
 #endif
 
 
-// MARK: - Video subsystem
+// MARK: - GPU Subsystem
+#undef SDL_GPU_DISABLED
+#undef SDL_GPU_D3D11
+#undef SDL_GPU_D3D12
+#undef SDL_GPU_METAL
+#undef SDL_GPU_PRIVATE
+#undef SDL_GPU_VULKAN
+#undef HAVE_GPU_OPENXR
+
+#ifdef SDL_SWIFTPM_GPU_ENABLED
+#ifdef SDL_SWIFTPM_VIDEO_METAL_ENABLED
+#define SDL_GPU_METAL 1
+#endif
+#ifdef SDL_SWIFTPM_VIDEO_VULKAN_ENABLED
+#define SDL_GPU_VULKAN 1
+#endif
+#else
+#define SDL_GPU_DISABLED 1
+#endif
+
+#ifdef SDL_SWIFTPM_GPU_OPENXR_ENABLED
+#define HAVE_GPU_OPENXR 1
+#endif
+
+// MARK: - Video Subsystem
 #undef SDL_VIDEO_DISABLED
 #undef SDL_VIDEO_DRIVER_ANDROID
 #undef SDL_VIDEO_DRIVER_COCOA
