@@ -855,6 +855,7 @@ let package = Package(
 		.sdlTestExecutable(name: "testdraw"),
 		.sdlTestExecutable(name: "testdrawchessboard"),
 		.sdlTestExecutable(name: "testdropfile"),
+		.sdlTestExecutable(name: "testdynaudioreopen", additionalDependencies: ["testutils"]),
 //		.sdlTestExecutable(name: "testffmpeg", additionalSources: ["testffmpeg_vulkan.c"]),	// Requires FFmpeg > 5.1.3, can we #define around it?
 		.sdlTestExecutable(name: "testgeometry", additionalDependencies: ["testutils"]),
 		.sdlTestExecutable(
