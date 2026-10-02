@@ -32,15 +32,11 @@ import System
 
 
 	// Subsystem switches
-//	.define("SDL_GPU_DISABLED", .when(traits: ["DisableGPU"])),
 //	.define("SDL_POWER_DISABLED", .when(traits: ["DisablePower"])),
-//	.define("SDL_RENDER_DISABLED", .when(traits: ["DisableRender"])),
 //
 //	
 //	.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
-//	.define("HAVE_GPU_OPENXR", .when(traits: ["OpenXRGPU"])),
 //	.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
-//	.define("SDL_VIDEO_RENDER_VULKAN", .when(traits: ["VulkanRenderer"])),
 //]
 
 
@@ -249,6 +245,12 @@ struct TraitDescription {
 		enableGPU,
 		enableGPUOpenXR,
 
+		enableDefaultRender,
+		enableRender,
+		enableRenderGPU,
+		enableRenderMetal,
+		enableRenderVulkan,
+
 		enableDefaultVideo,
 		enableVideo,
 		enableVideoDriverCocoa,
@@ -325,6 +327,12 @@ struct TraitDescription {
 		static let sdlSwiftPMGPUEnabled = "SDL_SWIFTPM_GPU_ENABLED"
 		static let sdlSwiftPMGPUOpenXREnabled = "SDL_SWIFTPM_GPU_OPENXR_ENABLED"
 
+		// Render Subsystem Defines
+		static let sdlSwiftPMRenderEnabled = "SDL_SWIFTPM_RENDER_ENABLED"
+		static let sdlSwiftPMRenderGPUEnabled = "SDL_SWIFTPM_RENDER_GPU_ENABLED"
+		static let sdlSwiftPMRenderMetalEnabled = "SDL_SWIFTPM_RENDER_METAL_ENABLED"
+		static let sdlSwiftPMRenderVulkanEnabled = "SDL_SWIFTPM_RENDER_VULKAN_ENABLED"
+
 		// Video Subsystem Defines
 		static let sdlSwiftPMVideoEnabled = "SDL_SWIFTPM_VIDEO_ENABLED"
 		static let sdlSwiftPMVideoDriverCocoaEnabled = "SDL_SWIFTPM_VIDEO_DRIVER_COCOA_ENABLED"
@@ -359,7 +367,7 @@ struct TraitDescription {
 		name: "EnableAudioDriverCoreAudio",
 		description: "Enable the CoreAudio driver for the audio subsystem (CMake: no separate option).",
 		enabledTraits: [enableAudio.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled)],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.macOS]))],
 	)
 	static let enableAudioDriverDisk = TraitDescription(
 		name: "EnableAudioDriverDisk",
@@ -396,7 +404,7 @@ struct TraitDescription {
 		name: "EnableCameraDriverCoreMedia",
 		description: "Enable the CoreMedia driver for the camera subsystem (CMake: no separate option).",
 		enabledTraits: [enableCamera.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled)],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled, .when(platforms: [.macOS]))],
 	)
 	static let enableCameraDriverDummy = TraitDescription(
 		name: "EnableCameraDriverDummy",
@@ -427,6 +435,7 @@ struct TraitDescription {
 	static let enableDefaultGPU = TraitDescription(
 		name: "EnableDefaultGPU",
 		description: "Enable the default GPU subsystem and drivers for a platform.",
+		enabledTraits: [enableDefaultVideo.name],
 		isDefault: true,
 		cSettingDefines: [
 			.define(CSettingDefine.sdlSwiftPMGPUEnabled, .when(platforms: [.macOS])),
@@ -446,6 +455,44 @@ struct TraitDescription {
 	)
 
 
+	// Render Subsystem Traits
+	static let enableDefaultRender = TraitDescription(
+		name: "EnableDefaultRender",
+		description: "Enable the default render subsystem and drivers for a platform.",
+		enabledTraits: [enableDefaultGPU.name, enableDefaultVideo.name],
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMRenderEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMRenderGPUEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMRenderMetalEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableRender = TraitDescription(
+		name: "EnableRender",
+		description: "Enable the render subsystem (CMake: SDL_RENDER=ON).",
+		enabledTraits: [enableVideo.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderEnabled)]
+	)
+	static let enableRenderGPU = TraitDescription(
+		name: "EnableRenderGPU",
+		description: "Enable the GPU driver for the render subsystem (CMake: SDL_RENDER_GPU=ON).",
+		enabledTraits: [enableRender.name, enableGPU.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderGPUEnabled)]
+	)
+	static let enableRenderMetal = TraitDescription(
+		name: "EnableRenderMetal",
+		description: "Enable the Metal driver for the render subsystem (CMake: SDL_RENDER_METAL=ON).",
+		enabledTraits: [enableRender.name, enableVideoMetal.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderMetalEnabled, .when(platforms: [.macOS]))]
+	)
+	static let enableRenderVulkan = TraitDescription(
+		name: "EnableRenderVulkan",
+		description: "Enable the Vulkan driver for the render subsystem (CMake: SDL_RENDER_VULKAN=ON).",
+		enabledTraits: [enableRender.name, enableVideoVulkan.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderVulkanEnabled, .when(platforms: [.macOS]))]
+	)
+
+
 	// Video Subsystem Traits
 
 	static let enableDefaultVideo = TraitDescription(
@@ -460,7 +507,6 @@ struct TraitDescription {
 			.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.macOS])),
 			.define(CSettingDefine.sdlSwiftPMVideoOpenGLEnabled, .when(platforms: [.macOS])),
 			.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled, .when(platforms: [.macOS])),
 		]
 	)
 	static let enableVideo = TraitDescription(
@@ -472,7 +518,7 @@ struct TraitDescription {
 		name: "EnableVideoDriverCocoa",
 		description: "Enable the Cocoa driver for the video subsystem (CMake: SDL_COCOA=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoDriverCocoaEnabled)]
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoDriverCocoaEnabled, .when(platforms: [.macOS]))]
 	)
 	static let enableVideoDriverDummy = TraitDescription(
 		name: "EnableVideoDriverDummy",
@@ -490,25 +536,25 @@ struct TraitDescription {
 		name: "EnableVideoMetal",
 		description: "Enable Metal support for the video subsystem (CMake: SDL_METAL=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled)],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.macOS]))],
 	)
 	static let enableVideoOpenGL = TraitDescription(
 		name: "EnableVideoOpenGL",
 		description: "Enable OpenGL support for the video subsystem (CMake: SDL_OPENGL=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLEnabled)],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLEnabled, .when(platforms: [.macOS]))],
 	)
 	static let enableVideoOpenGLES = TraitDescription(
 		name: "EnableVideoOpenGLES",
 		description: "Enable OpenGL ES support for the video subsystem (CMake: SDL_OPENGLES=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled)],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.macOS]))],
 	)
 	static let enableVideoVulkan = TraitDescription(
 		name: "EnableVideoVulkan",
 		description: "Enable Vulkan support for the video subsystem (CMake: SDL_VULKAN=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled)],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled, .when(platforms: [.macOS]))],
 	)
 }
 
@@ -539,13 +585,9 @@ let package = Package(
 	traits: Set(TraitDescription.allTraits + [TraitDescription.defaultEnabledTraits]),
 	
 	/*
-	 .trait(name: "DisableGPU", description: "Disable the GPU subsystem (CMake: SDL_GPU=OFF, which defines SDL_GPU_DISABLED)."),
 	 .trait(name: "DisablePower", description: "Disable the Power subsystem (CMake: SDL_POWER=OFF, which defines SDL_POWER_DISABLED)."),
-	 .trait(name: "DisableRender", description: "Disable the Render subsystem (CMake: SDL_RENDER=OFF, which defines SDL_RENDER_DISABLED)."),
 	 .trait(name: "LeanAndMean", description: "Build a lean SDL library with reduced graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON, which defines SDL_LEAN_AND_MEAN)."),
-	 .trait(name: "OpenXRGPU", description: "Build SDL_GPU with OpenXR support (CMake: SDL_GPU_OPENXR=ON, which defines HAVE_GPU_OPENXR)."),
 	 .trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake: no option — defines SDL_STORAGE_STEAM)."),
-	 .trait(name: "VulkanRenderer", description: "Enable the Vulkan render driver (CMake: SDL_RENDER_VULKAN=ON, which defines SDL_VIDEO_RENDER_VULKAN)."),
 	 */
 	dependencies: [
 		.package(url: "https://github.com/swiftlang/swift-subprocess", from: "1.0.0"),
@@ -560,8 +602,20 @@ let package = Package(
 			name: "SimpleDirectMediaLayer",
 			dependencies: [
 				//				.target(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
+				// Platform Dependencies
+
 				.target(name: "macOS", condition: .when(platforms: [.macOS])),
 				.target(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
+
+
+				// Subsystem Dependencies
+
+				.target(name: "audio", condition: .when(traits: [TraitDescription.enableAudio.name])),
+				.target(name: "camera", condition: .when(traits: [TraitDescription.enableCamera.name])),
+				.target(name: "dialog", condition: .when(traits: [TraitDescription.enableDialog.name])),
+				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableGPU.name])),
+				.target(name: "render", condition: .when(traits: [TraitDescription.enableRender.name])),
+				.target(name: "video", condition: .when(traits: [TraitDescription.enableVideo.name])),
 			],
 			additionalExcludes:
 				contentsOfDirectory(path: "src/atomic", directories: true)
@@ -586,20 +640,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/notification", directories: true)
 				+ contentsOfDirectory(path: "src/power", directories: true)
 				+ contentsOfDirectory(path: "src/process", directories: true)
-				+ contentsOfDirectory(path: "src/render/direct3d", files: true, withExtensions: ["bat", "hlsl", "hlsli"], directories: true)
-				+ contentsOfDirectory(path: "src/render/direct3d11", files: true, withExtensions: ["bat", "hlsl", "hlsli"], directories: true)
-				+ contentsOfDirectory(path: "src/render/direct3d12", files: true, withExtensions: ["bat", "hlsl", "hlsli", "cpp"], directories: true)
-				+ contentsOfDirectory(path: "src/render/gpu", directories: true)
-				+ contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal", "m"], directories: true)
-				+ contentsOfDirectory(path: "src/render/ngage", files: true, withExtensions: ["cpp", "hpp"], directories: true)
-				+ contentsOfDirectory(path: "src/render/opengl", directories: true)
-				+ contentsOfDirectory(path: "src/render/opengles", directories: true)
-				+ contentsOfDirectory(path: "src/render/opengles2", directories: true)
-				+ contentsOfDirectory(path: "src/render/ps2", directories: true)
-				+ contentsOfDirectory(path: "src/render/psp", directories: true)
-				+ contentsOfDirectory(path: "src/render/software", directories: true)
-				+ contentsOfDirectory(path: "src/render/vitagxm", directories: true)
-				+ contentsOfDirectory(path: "src/render/vulkan", files: true, withExtensions: ["bat", "hlsl", "hlsli"], directories: true)
+				+ contentsOfDirectory(path: "src/render", directories: true, except: ["software"])
 				+ contentsOfDirectory(path: "src/sensor", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/stdlib", files: true, withExtensions: ["masm"], directories: true)
 				+ contentsOfDirectory(path: "src/storage", directories: true, except: ["generic", "steam"])
@@ -678,18 +719,48 @@ let package = Package(
 		.sdlTarget(
 			name: "macOS",
 			dependencies: [
-				.target(name: "audio_driver_coreaudio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverCoreAudio.name])),
-				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDisk.name])),
-				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultAudio.name, TraitDescription.enableAudioDriverDummy.name])),
-				.target(name: "camera_driver_coremedia", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverCoreMedia.name])),
-				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name, TraitDescription.enableCameraDriverDummy.name])),
-				.target(name: "dialog_cocoa", condition: .when(traits: [TraitDescription.enableDefaultDialog.name, TraitDescription.enableDialog.name])),
-				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableDefaultGPU.name, TraitDescription.enableGPU.name])),
-				.target(name: "video_driver_cocoa", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverCocoa.name])),
-				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverDummy.name])),
-				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoDriverOffscreen.name])),
+
+				// Audio Subsystem Default Dependencies
+
+				.target(name: "audio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_coreaudio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+
+
+				// Camera Subsystem Default Dependencies
+
+				.target(name: "camera", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+				.target(name: "camera_driver_coremedia", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+
+
+				// Dialog Subsystem Default Dependencies
+
+				.target(name: "dialog", condition: .when(traits: [TraitDescription.enableDefaultDialog.name])),
+
+
+				// GPU Subsystem Default Dependencies
+
+				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableDefaultGPU.name])),
+				.target(name: "gpu_metal", condition: .when(traits: [TraitDescription.enableDefaultGPU.name])),
+
+
+				// Render Subsystem Default Dependencies
+
+				.target(name: "render", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_gpu", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_metal", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_opengl", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_opengles2", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+
+				// Video Subsystem Default Dependencies
+
+				.target(name: "video", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
+				.target(name: "video_driver_cocoa", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
+				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
+				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
 			],
-			additionalExcludes: contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]),
 			sources: [
 				"src/filesystem/cocoa",
 				"src/haptic/darwin",
@@ -699,7 +770,6 @@ let package = Package(
 				"src/misc/macos",
 				"src/notification/cocoa",
 				"src/power/macos",
-				"src/render/metal",
 				"src/tray/cocoa",
 			],
 			additionalLinkerSettings: [
@@ -736,31 +806,91 @@ let package = Package(
 
 		// MARK: - Subsystem Targets
 
+		// Audio Subsystem Targets
+
 		.sdlTarget(
-			name: "gpu",
+			name: "audio",
 			dependencies: [
-				.target(name: "gpu_metal", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoMetal.name])),
-				.target(name: "gpu_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableDefaultVideo.name, TraitDescription.enableVideoVulkan.name])),
+				.target(name: "audio_driver_coreaudio", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableAudioDriverCoreAudio.name])),
+				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableAudioDriverDisk.name])),
+				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableAudioDriverDummy.name])),
 			],
-			sources: ["swift/Sources/gpu"],
+			sources: ["swift/Sources/audio"],
 		),
-
-
-		// MARK: - Subsystem Backend Targets
-
 		.sdlTarget(name: "audio_driver_coreaudio", sources: ["src/audio/coreaudio"], additionalLinkerSettings: [.linkedFramework("AudioToolbox"), .linkedFramework("CoreAudio")]),
 		.sdlTarget(name: "audio_driver_disk", sources: ["src/audio/disk"]),
 		.sdlTarget(name: "audio_driver_dummy", sources: ["src/audio/dummy"]),
+
+
+		// Camera Subsystem Targets
+
+		.sdlTarget(
+			name: "camera",
+			dependencies: [
+				.target(name: "camera_driver_coremedia", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableCameraDriverCoreMedia.name])),
+				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableCameraDriverDummy.name])),
+			],
+			sources: ["swift/Sources/camera"],
+		),
 		.sdlTarget(name: "camera_driver_coremedia", sources: ["src/camera/coremedia"], additionalLinkerSettings: [.linkedFramework("AVFoundation"), .linkedFramework("CoreMedia")]),
 		.sdlTarget(name: "camera_driver_dummy", sources: ["src/camera/dummy"]),
-		.sdlTarget(name: "dialog_cocoa", dependencies: ["dialog_utils"], sources: ["src/dialog/cocoa"], additionalLinkerSettings: [.linkedFramework("AppKit")]),
-		.sdlTarget(name: "dialog_utils", sources: ["src/dialog/SDL_dialog_utils.c"]),
+
+
+		// Dialog Subsystem Targets
+
 		.sdlTarget(
-			name: "gpu_metal",
-			additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]),
-			sources: ["src/gpu/metal"]
+			name: "dialog",
+			dependencies: [
+				.target(name: "dialog_cocoa", condition: .when(platforms: [.macOS])),
+			],
+			sources: ["src/dialog/SDL_dialog_utils.c"],
 		),
+		.sdlTarget(name: "dialog_cocoa", sources: ["src/dialog/cocoa"], additionalLinkerSettings: [.linkedFramework("AppKit")]),
+
+
+		// GPU Subsystem Targets
+
+		.sdlTarget(
+			name: "gpu",
+			dependencies: [
+				.target(name: "gpu_metal", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoMetal.name, TraitDescription.enableDefaultVideo.name])),
+				.target(name: "gpu_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoVulkan.name])),
+			],
+			sources: ["swift/Sources/gpu"],
+		),
+		.sdlTarget(name: "gpu_metal",additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]), sources: ["src/gpu/metal"]),
 		.sdlTarget(name: "gpu_vulkan", sources: ["src/gpu/vulkan"]),
+
+
+		// Render Subsystem Targets
+
+		.sdlTarget(
+			name: "render",
+			dependencies: [
+				.target(name: "render_gpu", condition: .when(traits: [TraitDescription.enableRenderGPU.name])),
+				.target(name: "render_metal", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderMetal.name])),
+				.target(name: "render_opengl", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGL.name, TraitDescription.enableDefaultVideo.name])),
+				.target(name: "render_opengles2", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.target(name: "render_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderVulkan.name])),			],
+			sources: ["swift/Sources/render"],
+		),
+		.sdlTarget(name: "render_gpu", additionalExcludes: ["src/render/gpu/shaders"], sources: ["src/render/gpu"]),
+		.sdlTarget(name: "render_metal", additionalExcludes: contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]), sources: ["src/render/metal"]),
+		.sdlTarget(name: "render_opengl", sources: ["src/render/opengl"]),
+		.sdlTarget(name: "render_opengles2", sources: ["src/render/opengles2"]),
+		.sdlTarget(name: "render_vulkan", additionalExcludes: contentsOfDirectory(path: "src/render/vulkan", files: true, withExtensions: ["bat", "hlsl", "hlsli"]), sources: ["src/render/vulkan"]),
+
+		// Video Subsystem Targets
+
+		.sdlTarget(
+			name: "video",
+			dependencies: [
+				.target(name: "video_driver_cocoa", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoDriverCocoa.name])),
+				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableVideoDriverDummy.name])),
+				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableVideoDriverOffscreen.name])),
+			],
+			sources: ["swift/Sources/video"],
+		),
 		.sdlTarget(name: "video_driver_cocoa", sources: ["src/video/cocoa"], additionalLinkerSettings: []),
 		.sdlTarget(name: "video_driver_dummy", sources: ["src/video/dummy"]),
 		.sdlTarget(name: "video_driver_offscreen", sources: ["src/video/offscreen"]),
