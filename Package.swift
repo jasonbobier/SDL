@@ -250,6 +250,14 @@ struct TraitDescription {
 		enableHIDAPILibUSB,
 		enableHIDAPILibUSBShared,
 
+		enableDefaultJoystick,
+		enableJoystick,
+		enableJoystickDriverDummy,
+		enableJoystickDriverHIDAPI,
+		enableJoystickDriverIOKit,
+		enableJoystickDriverMFI,
+		enableJoystickDriverVirtual,
+
 		enableDefaultRender,
 		enableRender,
 		enableRenderGPU,
@@ -336,6 +344,14 @@ struct TraitDescription {
 		static let sdlSwiftPMHIDAPIEnabled = "SDL_SWIFTPM_HIDAPI_ENABLED"
 		static let sdlSwiftPMHIDAPILibUSBEnabled = "SDL_SWIFTPM_HIDAPI_LIBUSB_ENABLED"
 		static let sdlSwiftPMHIDAPILibUSBSharedEnabled = "SDL_SWIFTPM_HIDAPI_LIBUSB_SHARED_ENABLED"
+
+		// Joystick Subsystem Defines
+		static let sdlSwiftPMJoystickEnabled = "SDL_SWIFTPM_JOYSTICK_ENABLED"
+		static let sdlSwiftPMJoystickDriverDummyEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_DUMMY_ENABLED"
+		static let sdlSwiftPMJoystickDriverHIDAPIEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_HIDAPI_ENABLED"
+		static let sdlSwiftPMJoystickDriverIOKitEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_IOKIT_ENABLED"
+		static let sdlSwiftPMJoystickDriverMFIEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_MFI_ENABLED"
+		static let sdlSwiftPMJoystickDriverVirtualEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_VIRTUAL_ENABLED"
 
 		// Render Subsystem Defines
 		static let sdlSwiftPMRenderEnabled = "SDL_SWIFTPM_RENDER_ENABLED"
@@ -442,6 +458,7 @@ struct TraitDescription {
 
 
 	// GPU Subsystem Traits
+
 	static let enableDefaultGPU = TraitDescription(
 		name: "EnableDefaultGPU",
 		description: "Enable the default GPU subsystem and drivers for a platform.",
@@ -466,6 +483,7 @@ struct TraitDescription {
 
 
 	// HIDAPI Subsystem Traits
+
 	static let enableDefaultHIDAPI = TraitDescription(
 		name: "EnableDefaultHIDAPI",
 		description: "Enable the default HIDAPI subsystem and drivers for a platform.",
@@ -496,7 +514,60 @@ struct TraitDescription {
 	)
 
 
+	// Joystick Subsystem Traits
+
+	static let enableDefaultJoystick = TraitDescription(
+		name: "EnableDefaultJoystick",
+		description: "Enable the default joystick subsystem and drivers for a platform.",
+		enabledTraits: [enableDefaultHIDAPI.name],
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMJoystickEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickDriverHIDAPIEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickDriverIOKitEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickDriverMFIEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickDriverVirtualEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableJoystick = TraitDescription(
+		name: "EnableJoystick",
+		description: "Enable the joystick subsystem (CMake: SDL_JOYSTICK=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickEnabled)]
+	)
+	static let enableJoystickDriverDummy = TraitDescription(
+		name: "EnableJoystickDriverDummy",
+		description: "Enable the dummy driver for the joystick subsystem (CMake: no separate option).",
+		enabledTraits: [enableJoystick.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickDriverDummyEnabled)],
+	)
+	static let enableJoystickDriverHIDAPI = TraitDescription(
+		name: "EnableJoystickDriverHIDAPI",
+		description: "Use HIDAPI for low level joystick drivers (CMake: SDL_HIDAPI_JOYSTICK=ON).",
+		enabledTraits: [enableHIDAPI.name, enableJoystick.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickDriverHIDAPIEnabled)],
+	)
+	static let enableJoystickDriverIOKit = TraitDescription(
+		name: "EnableJoystickDriverIOKit",
+		description: "Enable the IOKit driver for the joystick subsystem (CMake: no separate option).",
+		enabledTraits: [enableJoystick.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickDriverIOKitEnabled, .when(platforms: [.macOS]))],
+	)
+	static let enableJoystickDriverMFI = TraitDescription(
+		name: "EnableJoystickDriverMFI",
+		description: "Enable the GameController (MFI) driver for the joystick subsystem (CMake: no separate option).",
+		enabledTraits: [enableJoystick.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickDriverMFIEnabled, .when(platforms: [.macOS]))],
+	)
+	static let enableJoystickDriverVirtual = TraitDescription(
+		name: "EnableJoystickDriverVirtual",
+		description: "Enable the virtual-joystick driver (CMake: SDL_VIRTUAL_JOYSTICK=ON).",
+		enabledTraits: [enableJoystick.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickDriverVirtualEnabled)],
+	)
+
+
 	// Render Subsystem Traits
+
 	static let enableDefaultRender = TraitDescription(
 		name: "EnableDefaultRender",
 		description: "Enable the default render subsystem and drivers for a platform.",
@@ -654,6 +725,7 @@ let package = Package(
 				.target(name: "camera", condition: .when(traits: [TraitDescription.enableCamera.name])),
 				.target(name: "dialog", condition: .when(traits: [TraitDescription.enableDialog.name])),
 				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableGPU.name])),
+				.target(name: "joystick", condition: .when(traits: [TraitDescription.enableJoystick.name])),
 				.target(name: "render", condition: .when(traits: [TraitDescription.enableRender.name])),
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableVideo.name])),
 			],
@@ -671,7 +743,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/haptic", directories: true, except: ["hidapi"])
 				+ contentsOfDirectory(path: "src/hidapi", files: true, withExtensions: ["txt", "md", "am", "ac", "build", ""], directories: true)
 				+ contentsOfDirectory(path: "src/io", directories: true, except: ["generic"])
-				+ contentsOfDirectory(path: "src/joystick", files: true, withExtensions: ["sh", "py"], directories: true, except: ["hidapi", "virtual"])
+				+ contentsOfDirectory(path: "src/joystick", files: true, withExtensions: ["sh", "py"], directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/libm", directories: true)
 				+ contentsOfDirectory(path: "src/loadso", directories: true)
 				+ contentsOfDirectory(path: "src/locale", directories: true)
@@ -789,6 +861,14 @@ let package = Package(
 				.target(name: "gpu_metal", condition: .when(traits: [TraitDescription.enableDefaultGPU.name])),
 
 
+				// Joystick Subsystem Default Dependencies
+				.target(name: "joystick", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+				.target(name: "joystick_driver_hidapi", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+				.target(name: "joystick_driver_iokit", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+				.target(name: "joystick_driver_mfi", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+				.target(name: "joystick_driver_virtual", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+
+
 				// Render Subsystem Default Dependencies
 
 				.target(name: "render", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
@@ -807,8 +887,6 @@ let package = Package(
 			sources: [
 				"src/filesystem/cocoa",
 				"src/haptic/darwin",
-				"src/joystick/apple",
-				"src/joystick/darwin",
 				"src/locale/macos",
 				"src/misc/macos",
 				"src/notification/cocoa",
@@ -903,6 +981,24 @@ let package = Package(
 		),
 		.sdlTarget(name: "gpu_metal",additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]), sources: ["src/gpu/metal"]),
 		.sdlTarget(name: "gpu_vulkan", sources: ["src/gpu/vulkan"]),
+
+
+		// Joystick Subsystem Targets
+
+		.sdlTarget(
+			name: "joystick",
+			dependencies: [
+				.target(name: "joystick_driver_hidapi", condition: .when(traits: [TraitDescription.enableJoystickDriverHIDAPI.name])),
+				.target(name: "joystick_driver_iokit", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableJoystickDriverIOKit.name])),
+				.target(name: "joystick_driver_mfi", condition: .when(platforms: [.macOS])),	// Unfortunately, the core always needs this when the joystick is enabled.
+				.target(name: "joystick_driver_virtual", condition: .when(traits: [TraitDescription.enableJoystickDriverVirtual.name])),
+			],
+			sources: ["swift/Sources/joystick"],
+		),
+		.sdlTarget(name: "joystick_driver_hidapi", sources: ["src/joystick/hidapi"]),
+		.sdlTarget(name: "joystick_driver_iokit", sources: ["src/joystick/darwin"], additionalLinkerSettings: []),
+		.sdlTarget(name: "joystick_driver_mfi", sources: ["src/joystick/apple"], additionalLinkerSettings: []),
+		.sdlTarget(name: "joystick_driver_virtual", sources: ["src/joystick/virtual"]),
 
 
 		// Render Subsystem Targets
