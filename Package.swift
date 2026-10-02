@@ -245,6 +245,11 @@ struct TraitDescription {
 		enableGPU,
 		enableGPUOpenXR,
 
+		enableDefaultHIDAPI,
+		enableHIDAPI,
+		enableHIDAPILibUSB,
+		enableHIDAPILibUSBShared,
+
 		enableDefaultRender,
 		enableRender,
 		enableRenderGPU,
@@ -326,6 +331,11 @@ struct TraitDescription {
 		// GPU Subsystem Defines
 		static let sdlSwiftPMGPUEnabled = "SDL_SWIFTPM_GPU_ENABLED"
 		static let sdlSwiftPMGPUOpenXREnabled = "SDL_SWIFTPM_GPU_OPENXR_ENABLED"
+
+		// HIDAPI Subsystem Defines
+		static let sdlSwiftPMHIDAPIEnabled = "SDL_SWIFTPM_HIDAPI_ENABLED"
+		static let sdlSwiftPMHIDAPILibUSBEnabled = "SDL_SWIFTPM_HIDAPI_LIBUSB_ENABLED"
+		static let sdlSwiftPMHIDAPILibUSBSharedEnabled = "SDL_SWIFTPM_HIDAPI_LIBUSB_SHARED_ENABLED"
 
 		// Render Subsystem Defines
 		static let sdlSwiftPMRenderEnabled = "SDL_SWIFTPM_RENDER_ENABLED"
@@ -455,6 +465,37 @@ struct TraitDescription {
 	)
 
 
+	// HIDAPI Subsystem Traits
+	static let enableDefaultHIDAPI = TraitDescription(
+		name: "EnableDefaultHIDAPI",
+		description: "Enable the default HIDAPI subsystem and drivers for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMHIDAPIEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableHIDAPI = TraitDescription(
+		name: "EnableHIDAPI",
+		description: "Enable the HIDAPI subsystem (CMake: SDL_HIDAPI=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMHIDAPIEnabled)]
+	)
+	static let enableHIDAPILibUSB = TraitDescription(
+		name: "EnableHIDAPILibUSB",
+		description: "Link libusb at build time for low level joystick drivers (CMake: SDL_HIDAPI_LIBUSB=ON).",
+		enabledTraits: [enableHIDAPI.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMHIDAPILibUSBEnabled, .when(platforms: [.macOS]))]
+	)
+	static let enableHIDAPILibUSBShared = TraitDescription(
+		name: "EnableHIDAPILibUSBShared",
+		description: "Dynamically load libusb at runtime for low level joystick drivers (CMake: SDL_HIDAPI_LIBUSB=ON, SDL_HIDAPI_LIBUSB_SHARED=ON).",
+		enabledTraits: [enableHIDAPI.name],
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMHIDAPILibUSBEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMHIDAPILibUSBSharedEnabled, .when(platforms: [.macOS])),
+		]
+	)
+
+
 	// Render Subsystem Traits
 	static let enableDefaultRender = TraitDescription(
 		name: "EnableDefaultRender",
@@ -506,7 +547,6 @@ struct TraitDescription {
 			.define(CSettingDefine.sdlSwiftPMVideoDriverOffscreenEnabled, .when(platforms: [.macOS])),
 			.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.macOS])),
 			.define(CSettingDefine.sdlSwiftPMVideoOpenGLEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.macOS])),
 		]
 	)
 	static let enableVideo = TraitDescription(
@@ -662,6 +702,9 @@ let package = Package(
 				.headerSearchPath("swift/Sources/SimpleDirectMediaLayer/include"),
 				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
 			],
+			additionalLinkerSettings: [
+				.linkedLibrary("usb-1.0", .when(platforms: [.macOS], traits: [TraitDescription.enableHIDAPILibUSB.name]))
+			],
 			plugins: [
 				"BuildSDLRevisionHeaderPlugin",
 			]
@@ -752,7 +795,7 @@ let package = Package(
 				.target(name: "render_gpu", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
 				.target(name: "render_metal", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
 				.target(name: "render_opengl", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
-				.target(name: "render_opengles2", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+
 
 				// Video Subsystem Default Dependencies
 
@@ -870,7 +913,7 @@ let package = Package(
 				.target(name: "render_gpu", condition: .when(traits: [TraitDescription.enableRenderGPU.name])),
 				.target(name: "render_metal", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderMetal.name])),
 				.target(name: "render_opengl", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGL.name, TraitDescription.enableDefaultVideo.name])),
-				.target(name: "render_opengles2", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.target(name: "render_opengles2", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGLES.name])),
 				.target(name: "render_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderVulkan.name])),			],
 			sources: ["swift/Sources/render"],
 		),

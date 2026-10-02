@@ -140,7 +140,26 @@
 #endif
 
 
+// MARK: - HIDAPI Subsystem
+
+#undef SDL_HIDAPI_DISABLED
+#undef HAVE_LIBUSB
+#undef SDL_LIBUSB_DYNAMIC
+
+#ifdef SDL_SWIFTPM_HIDAPI_ENABLED
+#ifdef SDL_SWIFTPM_HIDAPI_LIBUSB_ENABLED
+#define HAVE_LIBUSB 1
+#endif
+#ifdef SDL_SWIFTPM_HIDAPI_LIBUSB_SHARED_ENABLED
+#define SDL_LIBUSB_DYNAMIC "libusb-1.0.0.dylib"
+#endif
+#else
+#define SDL_HIDAPI_DISABLED 1
+#endif
+
+
 // MARK: - Render Subsystem
+
 #undef SDL_RENDER_DISABLED
 #undef SDL_VIDEO_RENDER_D3D
 #undef SDL_VIDEO_RENDER_D3D11
