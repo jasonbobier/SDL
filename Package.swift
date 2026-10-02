@@ -245,6 +245,10 @@ struct TraitDescription {
 		enableGPU,
 		enableGPUOpenXR,
 
+		enableDefaultHaptic,
+		enableHaptic,
+		enableHapticDriverIOKit,
+
 		enableDefaultHIDAPI,
 		enableHIDAPI,
 		enableHIDAPILibUSB,
@@ -339,6 +343,10 @@ struct TraitDescription {
 		// GPU Subsystem Defines
 		static let sdlSwiftPMGPUEnabled = "SDL_SWIFTPM_GPU_ENABLED"
 		static let sdlSwiftPMGPUOpenXREnabled = "SDL_SWIFTPM_GPU_OPENXR_ENABLED"
+
+		// Haptic Subsystem Defines
+		static let sdlSwiftPMHapticEnabled = "SDL_SWIFTPM_HAPTIC_ENABLED"
+		static let sdlSwiftPMHapticDriverIOKitEnabled = "SDL_SWIFTPM_HAPTIC_DRIVER_IOKIT_ENABLED"
 
 		// HIDAPI Subsystem Defines
 		static let sdlSwiftPMHIDAPIEnabled = "SDL_SWIFTPM_HIDAPI_ENABLED"
@@ -479,6 +487,32 @@ struct TraitDescription {
 		description: "Enable OpenXR support for the GPU subsystem (CMake: SDL_GPU_OPENXR=ON).",
 		enabledTraits: [enableGPU.name],
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMGPUOpenXREnabled)],
+	)
+
+
+	// Haptic Subsystem Traits
+
+	static let enableDefaultHaptic = TraitDescription(
+		name: "EnableDefaultHaptic",
+		description: "Enable the default haptic subsystem and drivers for a platform.",
+		enabledTraits: [enableDefaultJoystick.name],
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMHapticEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMHapticDriverIOKitEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableHaptic = TraitDescription(
+		name: "EnableHaptic",
+		description: "Enable the haptic subsystem (CMake: SDL_HAPTIC=ON).",
+		enabledTraits: [enableJoystick.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMHapticEnabled)]
+	)
+	static let enableHapticDriverIOKit = TraitDescription(
+		name: "EnableHapticDriverIOKit",
+		description: "Enable the IOKit driver for the haptic subsystem (CMake: no separate option).",
+		enabledTraits: [enableHaptic.name],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMHapticDriverIOKitEnabled, .when(platforms: [.macOS]))],
 	)
 
 
@@ -725,6 +759,7 @@ let package = Package(
 				.target(name: "camera", condition: .when(traits: [TraitDescription.enableCamera.name])),
 				.target(name: "dialog", condition: .when(traits: [TraitDescription.enableDialog.name])),
 				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableGPU.name])),
+				.target(name: "haptic", condition: .when(traits: [TraitDescription.enableHaptic.name])),
 				.target(name: "joystick", condition: .when(traits: [TraitDescription.enableJoystick.name])),
 				.target(name: "render", condition: .when(traits: [TraitDescription.enableRender.name])),
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableVideo.name])),
@@ -740,7 +775,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/events", directories: true)
 				+ contentsOfDirectory(path: "src/filesystem", directories: true)
 				+ contentsOfDirectory(path: "src/gpu", directories: true, except: ["xr"])
-				+ contentsOfDirectory(path: "src/haptic", directories: true, except: ["hidapi"])
+				+ contentsOfDirectory(path: "src/haptic", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/hidapi", files: true, withExtensions: ["txt", "md", "am", "ac", "build", ""], directories: true)
 				+ contentsOfDirectory(path: "src/io", directories: true, except: ["generic"])
 				+ contentsOfDirectory(path: "src/joystick", files: true, withExtensions: ["sh", "py"], directories: true, except: ["dummy"])
@@ -862,6 +897,13 @@ let package = Package(
 
 
 				// Joystick Subsystem Default Dependencies
+
+				.target(name: "haptic", condition: .when(traits: [TraitDescription.enableDefaultHaptic.name])),
+				.target(name: "haptic_driver_iokit", condition: .when(traits: [TraitDescription.enableDefaultHaptic.name])),
+
+
+				// Joystick Subsystem Default Dependencies
+
 				.target(name: "joystick", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
 				.target(name: "joystick_driver_hidapi", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
 				.target(name: "joystick_driver_iokit", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
@@ -886,7 +928,6 @@ let package = Package(
 			],
 			sources: [
 				"src/filesystem/cocoa",
-				"src/haptic/darwin",
 				"src/locale/macos",
 				"src/misc/macos",
 				"src/notification/cocoa",
@@ -983,6 +1024,19 @@ let package = Package(
 		.sdlTarget(name: "gpu_vulkan", sources: ["src/gpu/vulkan"]),
 
 
+		// Haptic Subsystem Targets
+
+		.sdlTarget(
+			name: "haptic",
+			dependencies: [
+				.target(name: "haptic_driver_iokit", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableHapticDriverIOKit.name])),
+			],
+			sources: ["swift/Sources/haptic"],
+		),
+		.sdlTarget(name: "haptic_driver_hidapi", sources: ["src/haptic/hidapi"]),
+		.sdlTarget(name: "haptic_driver_iokit", sources: ["src/haptic/darwin"], additionalLinkerSettings: []),
+
+
 		// Joystick Subsystem Targets
 
 		.sdlTarget(
@@ -995,7 +1049,7 @@ let package = Package(
 			],
 			sources: ["swift/Sources/joystick"],
 		),
-		.sdlTarget(name: "joystick_driver_hidapi", sources: ["src/joystick/hidapi"]),
+		.sdlTarget(name: "joystick_driver_hidapi", dependencies: [.target(name: "haptic_driver_hidapi")], sources: ["src/joystick/hidapi"]),
 		.sdlTarget(name: "joystick_driver_iokit", sources: ["src/joystick/darwin"], additionalLinkerSettings: []),
 		.sdlTarget(name: "joystick_driver_mfi", sources: ["src/joystick/apple"], additionalLinkerSettings: []),
 		.sdlTarget(name: "joystick_driver_virtual", sources: ["src/joystick/virtual"]),

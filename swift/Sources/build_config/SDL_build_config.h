@@ -140,6 +140,27 @@
 #endif
 
 
+// MARK: - Haptic Subsystem
+
+#undef SDL_HAPTIC_DISABLED
+#undef SDL_HAPTIC_ANDROID
+#undef SDL_HAPTIC_DINPUT
+#undef SDL_HAPTIC_DUMMY
+#undef SDL_HAPTIC_IOKIT
+#undef SDL_HAPTIC_LINUX
+#undef SDL_HAPTIC_PRIVATE
+
+#ifdef SDL_SWIFTPM_HAPTIC_ENABLED
+#ifdef SDL_SWIFTPM_HAPTIC_DRIVER_IOKIT_ENABLED
+#define SDL_HAPTIC_IOKIT 1
+#else
+#define SDL_HAPTIC_DUMMY 1
+#endif
+#else
+#define SDL_HAPTIC_DISABLED 1
+#endif
+
+
 // MARK: - HIDAPI Subsystem
 
 #undef SDL_HIDAPI_DISABLED
