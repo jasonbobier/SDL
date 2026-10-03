@@ -265,6 +265,12 @@ struct TraitDescription {
 		enableRenderMetal,
 		enableRenderVulkan,
 
+		enableDefaultSensor,
+		enableSensor,
+
+		enableDefaultTray,
+		enableTray,
+
 		enableDefaultVideo,
 		enableVideo,
 		enableVideoDriverCocoa,
@@ -368,6 +374,12 @@ struct TraitDescription {
 		static let sdlSwiftPMRenderGPUEnabled = "SDL_SWIFTPM_RENDER_GPU_ENABLED"
 		static let sdlSwiftPMRenderMetalEnabled = "SDL_SWIFTPM_RENDER_METAL_ENABLED"
 		static let sdlSwiftPMRenderVulkanEnabled = "SDL_SWIFTPM_RENDER_VULKAN_ENABLED"
+
+		// Sensor Subsystem Defines
+		static let sdlSwiftPMSensorEnabled = "SDL_SWIFTPM_SENSOR_ENABLED"
+
+		// Tray Subsystem Defines
+		static let sdlSwiftPMTrayEnabled = "SDL_SWIFTPM_TRAY_ENABLED"
 
 		// Video Subsystem Defines
 		static let sdlSwiftPMVideoEnabled = "SDL_SWIFTPM_VIDEO_ENABLED"
@@ -496,7 +508,7 @@ struct TraitDescription {
 
 	static let enableDefaultHaptic = TraitDescription(
 		name: "EnableDefaultHaptic",
-		description: "Enable the default haptic subsystem and drivers for a platform.",
+		description: "Enable the default haptic subsystem for a platform.",
 		enabledTraits: [enableDefaultJoystick.name],
 		isDefault: true,
 		cSettingDefines: [
@@ -668,6 +680,40 @@ struct TraitDescription {
 	)
 
 
+	// Sensor Subsystem Traits
+
+	static let enableDefaultSensor = TraitDescription(
+		name: "EnableDefaultSensor",
+		description: "Enable the default sensor subsystem for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMSensorEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableSensor = TraitDescription(
+		name: "EnableSensor",
+		description: "Enable the sensor subsystem (CMake: SDL_SENSOR=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMSensorEnabled)]
+	)
+
+
+	// Tray Subsystem Traits
+
+	static let enableDefaultTray = TraitDescription(
+		name: "EnableDefaultTray",
+		description: "Enable the default tray subsystem for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMTrayEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableTray = TraitDescription(
+		name: "EnableTray",
+		description: "Enable the tray subsystem (CMake: SDL_TRAY=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMTrayEnabled)]
+	)
+
+
 	// Video Subsystem Traits
 
 	static let enableDefaultVideo = TraitDescription(
@@ -793,6 +839,8 @@ let package = Package(
 				.target(name: "notification", condition: .when(traits: [TraitDescription.enableNotification.name])),
 				.target(name: "power", condition: .when(traits: [TraitDescription.enablePower.name])),
 				.target(name: "render", condition: .when(traits: [TraitDescription.enableRender.name])),
+				.target(name: "sensor", condition: .when(traits: [TraitDescription.enableSensor.name])),
+				.target(name: "tray", condition: .when(traits: [TraitDescription.enableTray.name])),
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableVideo.name])),
 			],
 			additionalExcludes:
@@ -825,7 +873,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/thread", directories: true)
 				+ contentsOfDirectory(path: "src/time", directories: true)
 				+ contentsOfDirectory(path: "src/timer", directories: true)
-				+ contentsOfDirectory(path: "src/tray", directories: true)
+				+ contentsOfDirectory(path: "src/tray", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/video", files: true, withExtensions: ["pl"], directories: true, except: ["yuv2rgb"])
 				+ contentsOfDirectory(path: "src/video/yuv2rgb", files: true, withExtensions: ["md", ""])
 				+ [
@@ -965,6 +1013,16 @@ let package = Package(
 				.target(name: "render_opengl", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
 
 
+				// Sensor Subsystem Default Dependencies
+
+				.target(name: "sensor", condition: .when(traits: [TraitDescription.enableDefaultSensor.name])),
+
+
+				// Tray Subsystem Default Dependencies
+
+				.target(name: "tray", condition: .when(traits: [TraitDescription.enableDefaultTray.name])),
+
+
 				// Video Subsystem Default Dependencies
 
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
@@ -976,7 +1034,6 @@ let package = Package(
 				"src/filesystem/cocoa",
 				"src/locale/macos",
 				"src/misc/macos",
-				"src/tray/cocoa",
 			],
 			additionalLinkerSettings: [
 				.linkedFramework("AppKit"),
@@ -1151,6 +1208,29 @@ let package = Package(
 		.sdlTarget(name: "render_opengl", sources: ["src/render/opengl"]),
 		.sdlTarget(name: "render_opengles2", sources: ["src/render/opengles2"]),
 		.sdlTarget(name: "render_vulkan", additionalExcludes: contentsOfDirectory(path: "src/render/vulkan", files: true, withExtensions: ["bat", "hlsl", "hlsli"]), sources: ["src/render/vulkan"]),
+
+
+		// Sensor Subsystem Targets
+
+		.sdlTarget(
+			name: "sensor",
+			dependencies: [
+			],
+			sources: ["swift/Sources/sensor/src"],
+		),
+
+
+		// Tray Subsystem Targets
+
+		.sdlTarget(
+			name: "tray",
+			dependencies: [
+				.target(name: "tray_cocoa", condition: .when(platforms: [.macOS])),
+			],
+			sources: ["swift/Sources/tray/src"],
+		),
+		.sdlTarget(name: "tray_cocoa", sources: ["src/tray/cocoa"], additionalLinkerSettings: []),
+
 
 		// Video Subsystem Targets
 

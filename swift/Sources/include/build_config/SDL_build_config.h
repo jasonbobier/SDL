@@ -290,6 +290,38 @@
 #endif
 
 
+// MARK: - Sensor Subsystem
+
+#undef SDL_SENSOR_DISABLED
+#undef SDL_SENSOR_ANDROID
+#undef SDL_SENSOR_COREMOTION
+#undef SDL_SENSOR_WINDOWS
+#undef SDL_SENSOR_DUMMY
+#undef SDL_SENSOR_VITA
+#undef SDL_SENSOR_N3DS
+#undef SDL_SENSOR_EMSCRIPTEN
+#undef SDL_SENSOR_PRIVATE
+
+#ifdef SDL_SWIFTPM_SENSOR_ENABLED
+#define SDL_SENSOR_DUMMY 1
+#else
+#define SDL_SENSOR_DISABLED 1
+#endif
+
+
+// MARK: - Tray Subsystem
+
+#undef SDL_TRAY_DUMMY
+
+#ifdef SDL_SWIFTPM_TRAY_ENABLED
+#ifndef SDL_PLATFORM_MACOS
+#define SDL_TRAY_DUMMY 1
+#endif
+#else
+#define SDL_TRAY_DUMMY 1
+#endif
+
+
 // MARK: - Video Subsystem
 
 #undef SDL_VIDEO_DISABLED
