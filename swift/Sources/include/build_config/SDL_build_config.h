@@ -432,4 +432,23 @@
 #define SDL_VIDEO_VULKAN 1
 #endif
 
+
+// MARK: - Storage
+
+#undef SDL_STORAGE_STEAM
+#undef SDL_STORAGE_PRIVATE
+
+#ifdef SDL_SWIFTPM_STEAM_STORAGE_ENABLED
+#define SDL_STORAGE_STEAM 1
+#endif
+
+
+// MARK: - Lean and Mean
+
+#undef SDL_LEAN_AND_MEAN
+
+#ifdef SDL_SWIFTPM_LEAN_AND_MEAN_ENABLED
+#define SDL_LEAN_AND_MEAN 1
+#endif
+
 #endif /* SimpleDirectMediaLayer_build_config_h */

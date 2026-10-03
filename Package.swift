@@ -27,11 +27,6 @@ import PackageDescription
 import System
 
 
-	// Subsystem switches
-//	.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
-//	.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
-
-
 // MARK: - SDL Target Types
 
 extension Target {
@@ -280,6 +275,9 @@ struct TraitDescription {
 		enableVideoOpenGLES,
 		enableVideoMetal,
 		enableVideoVulkan,
+
+		enableSteamStorage,
+		enableLeanAndMean,
 	]
 
 	static var allTraits: [Trait] {
@@ -390,6 +388,10 @@ struct TraitDescription {
 		static let sdlSwiftPMVideoOpenGLEnabled = "SDL_SWIFTPM_VIDEO_OPENGL_ENABLED"
 		static let sdlSwiftPMVideoOpenGLESEnabled = "SDL_SWIFTPM_VIDEO_OPENGLES_ENABLED"
 		static let sdlSwiftPMVideoVulkanEnabled = "SDL_SWIFTPM_VIDEO_VULKAN_ENABLED"
+
+		// Additional Defines
+		static let sdlSwiftPMLeanAndMeanEnabled = "SDL_SWIFTPM_LEAN_AND_MEAN_ENABLED"
+		static let sdlSwiftPMSteamStorageEnabled = "SDL_SWIFTPM_STEAM_STORAGE_ENABLED"
 	}
 
 
@@ -776,6 +778,19 @@ struct TraitDescription {
 		enabledTraits: [enableVideo.name],
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled, .when(platforms: [.macOS]))],
 	)
+
+
+	// Additional Traits
+	static let enableLeanAndMean = TraitDescription(
+		name: "EnableLeanAndMean",
+		description: "Build a lean SDL library with reduced graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMLeanAndMeanEnabled)],
+	)
+	static let enableSteamStorage = TraitDescription(
+		name: "EnableSteamStorage",
+		description: "Enable the Steam user storage backend (CMake: no separate option).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMSteamStorageEnabled, .when(platforms: [.macOS]))],
+	)
 }
 
 
@@ -803,11 +818,6 @@ let package = Package(
 		.library(name: "SDL3_test", type: .static, targets: ["SDL3_test"]),
 	],
 	traits: Set(TraitDescription.allTraits + [TraitDescription.defaultEnabledTraits]),
-	
-	/*
-	 .trait(name: "LeanAndMean", description: "Build a lean SDL library with reduced graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON, which defines SDL_LEAN_AND_MEAN)."),
-	 .trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake: no option — defines SDL_STORAGE_STEAM)."),
-	 */
 	dependencies: [
 		.package(url: "https://github.com/swiftlang/swift-subprocess", from: "1.0.0"),
 		.package(url: "https://github.com/apple/swift-system", from: "1.8.1"),
@@ -842,6 +852,12 @@ let package = Package(
 				.target(name: "sensor", condition: .when(traits: [TraitDescription.enableSensor.name])),
 				.target(name: "tray", condition: .when(traits: [TraitDescription.enableTray.name])),
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableVideo.name])),
+
+
+				// Additional Dependencies
+
+				.target(name: "storage_steam", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableSteamStorage.name])),
+
 			],
 			additionalExcludes:
 				contentsOfDirectory(path: "src/atomic", directories: true)
@@ -869,7 +885,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/render", directories: true, except: ["software"])
 				+ contentsOfDirectory(path: "src/sensor", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/stdlib", files: true, withExtensions: ["masm"], directories: true)
-				+ contentsOfDirectory(path: "src/storage", directories: true, except: ["generic", "steam"])
+				+ contentsOfDirectory(path: "src/storage", directories: true, except: ["generic"])
 				+ contentsOfDirectory(path: "src/thread", directories: true)
 				+ contentsOfDirectory(path: "src/time", directories: true)
 				+ contentsOfDirectory(path: "src/timer", directories: true)
@@ -1036,20 +1052,20 @@ let package = Package(
 				"src/misc/macos",
 			],
 			additionalLinkerSettings: [
-				.linkedFramework("AppKit"),
-				.linkedFramework("Carbon"),
+//				.linkedFramework("AppKit"),
+//				.linkedFramework("Carbon"),
 				//				.linkedFramework("CoreFoundation"),
 				//				.linkedFramework("CoreGraphics"),
-					.linkedFramework("CoreHaptics"),
+	//				.linkedFramework("CoreHaptics"),
 				//				.linkedFramework("CoreVideo"),
-				.linkedFramework("ForceFeedback"),
-				.linkedFramework("GameController"),
-				.linkedFramework("IOKit"),
-				.linkedFramework("Metal"),
-				.linkedFramework("QuartzCore"),
-				.linkedFramework("Security"),
-				.linkedFramework("UniformTypeIdentifiers"),
-				.linkedFramework("UserNotifications"),
+//				.linkedFramework("ForceFeedback"),
+//				.linkedFramework("GameController"),
+//				.linkedFramework("IOKit"),
+//				.linkedFramework("Metal"),
+//				.linkedFramework("QuartzCore"),
+//				.linkedFramework("Security"),
+//				.linkedFramework("UniformTypeIdentifiers"),
+//				.linkedFramework("UserNotifications"),
 			],
 		),
 
@@ -1246,6 +1262,11 @@ let package = Package(
 		.sdlTarget(name: "video_driver_cocoa", sources: ["src/video/cocoa"], additionalLinkerSettings: []),
 		.sdlTarget(name: "video_driver_dummy", sources: ["src/video/dummy"]),
 		.sdlTarget(name: "video_driver_offscreen", sources: ["src/video/offscreen"]),
+
+
+		// Additional Targets
+
+		.sdlTarget(name: "storage_steam", sources: ["src/storage/steam"]),
 
 
 		// MARK: - SimpleDirectMediaLayerTests
