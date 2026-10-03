@@ -27,17 +27,9 @@ import PackageDescription
 import System
 
 
-// Appended to every target that compiles SDL internals
-//let enabledTraitCSettings: [CSetting] = [
-
-
 	// Subsystem switches
-//	.define("SDL_POWER_DISABLED", .when(traits: ["DisablePower"])),
-//
-//	
 //	.define("SDL_LEAN_AND_MEAN", .when(traits: ["LeanAndMean"])),
 //	.define("SDL_STORAGE_STEAM", .when(traits: ["SteamStorage"])),
-//]
 
 
 // MARK: - SDL Target Types
@@ -247,7 +239,6 @@ struct TraitDescription {
 
 		enableDefaultHaptic,
 		enableHaptic,
-		enableHapticDriverIOKit,
 
 		enableDefaultHIDAPI,
 		enableHIDAPI,
@@ -264,6 +255,9 @@ struct TraitDescription {
 
 		enableDefaultNotification,
 		enableNotification,
+
+		enableDefaultPower,
+		enablePower,
 
 		enableDefaultRender,
 		enableRender,
@@ -349,7 +343,6 @@ struct TraitDescription {
 
 		// Haptic Subsystem Defines
 		static let sdlSwiftPMHapticEnabled = "SDL_SWIFTPM_HAPTIC_ENABLED"
-		static let sdlSwiftPMHapticDriverIOKitEnabled = "SDL_SWIFTPM_HAPTIC_DRIVER_IOKIT_ENABLED"
 
 		// HIDAPI Subsystem Defines
 		static let sdlSwiftPMHIDAPIEnabled = "SDL_SWIFTPM_HIDAPI_ENABLED"
@@ -366,6 +359,9 @@ struct TraitDescription {
 
 		// Notification Subsystem Defines
 		static let sdlSwiftPMNotificationEnabled = "SDL_SWIFTPM_NOTIFICATION_ENABLED"
+
+		// Power Subsystem Defines
+		static let sdlSwiftPMPowerEnabled = "SDL_SWIFTPM_POWER_ENABLED"
 
 		// Render Subsystem Defines
 		static let sdlSwiftPMRenderEnabled = "SDL_SWIFTPM_RENDER_ENABLED"
@@ -505,7 +501,6 @@ struct TraitDescription {
 		isDefault: true,
 		cSettingDefines: [
 			.define(CSettingDefine.sdlSwiftPMHapticEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMHapticDriverIOKitEnabled, .when(platforms: [.macOS])),
 		]
 	)
 	static let enableHaptic = TraitDescription(
@@ -514,19 +509,13 @@ struct TraitDescription {
 		enabledTraits: [enableJoystick.name],
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMHapticEnabled)]
 	)
-	static let enableHapticDriverIOKit = TraitDescription(
-		name: "EnableHapticDriverIOKit",
-		description: "Enable the IOKit driver for the haptic subsystem (CMake: no separate option).",
-		enabledTraits: [enableHaptic.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMHapticDriverIOKitEnabled, .when(platforms: [.macOS]))],
-	)
 
 
 	// HIDAPI Subsystem Traits
 
 	static let enableDefaultHIDAPI = TraitDescription(
 		name: "EnableDefaultHIDAPI",
-		description: "Enable the default HIDAPI subsystem and drivers for a platform.",
+		description: "Enable the default HIDAPI subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
 			.define(CSettingDefine.sdlSwiftPMHIDAPIEnabled, .when(platforms: [.macOS])),
@@ -618,8 +607,25 @@ struct TraitDescription {
 	)
 	static let enableNotification = TraitDescription(
 		name: "EnableNotification",
-		description: "Enable the Notification subsystem (CMake: SDL_NOTIFICATION=ON).",
+		description: "Enable the notification subsystem (CMake: SDL_NOTIFICATION=ON).",
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMNotificationEnabled)]
+	)
+
+
+	// Power Subsystem Traits
+
+	static let enableDefaultPower = TraitDescription(
+		name: "EnableDefaultPower",
+		description: "Enable the default power subsystem for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMPowerEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enablePower = TraitDescription(
+		name: "EnablePower",
+		description: "Enable the power subsystem (CMake: SDL_POWER=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMPowerEnabled)]
 	)
 
 
@@ -753,7 +759,6 @@ let package = Package(
 	traits: Set(TraitDescription.allTraits + [TraitDescription.defaultEnabledTraits]),
 	
 	/*
-	 .trait(name: "DisablePower", description: "Disable the Power subsystem (CMake: SDL_POWER=OFF, which defines SDL_POWER_DISABLED)."),
 	 .trait(name: "LeanAndMean", description: "Build a lean SDL library with reduced graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON, which defines SDL_LEAN_AND_MEAN)."),
 	 .trait(name: "SteamStorage", description: "Enable the Steam user storage backend (CMake: no option — defines SDL_STORAGE_STEAM)."),
 	 */
@@ -786,6 +791,7 @@ let package = Package(
 				.target(name: "hidapi", condition: .when(traits: [TraitDescription.enableHIDAPI.name])),
 				.target(name: "joystick", condition: .when(traits: [TraitDescription.enableJoystick.name])),
 				.target(name: "notification", condition: .when(traits: [TraitDescription.enableNotification.name])),
+				.target(name: "power", condition: .when(traits: [TraitDescription.enablePower.name])),
 				.target(name: "render", condition: .when(traits: [TraitDescription.enableRender.name])),
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableVideo.name])),
 			],
@@ -925,7 +931,6 @@ let package = Package(
 				// Haptic Subsystem Default Dependencies
 
 				.target(name: "haptic", condition: .when(traits: [TraitDescription.enableDefaultHaptic.name])),
-				.target(name: "haptic_driver_iokit", condition: .when(traits: [TraitDescription.enableDefaultHaptic.name])),
 
 
 				// HIDAPI Subsystem Default Dependencies
@@ -947,6 +952,11 @@ let package = Package(
 				.target(name: "notification", condition: .when(traits: [TraitDescription.enableDefaultNotification.name])),
 
 
+				// Power Subsystem Default Dependencies
+
+				.target(name: "power", condition: .when(traits: [TraitDescription.enableDefaultPower.name])),
+
+
 				// Render Subsystem Default Dependencies
 
 				.target(name: "render", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
@@ -966,7 +976,6 @@ let package = Package(
 				"src/filesystem/cocoa",
 				"src/locale/macos",
 				"src/misc/macos",
-				"src/power/macos",
 				"src/tray/cocoa",
 			],
 			additionalLinkerSettings: [
@@ -1064,12 +1073,12 @@ let package = Package(
 		.sdlTarget(
 			name: "haptic",
 			dependencies: [
-				.target(name: "haptic_driver_iokit", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableHapticDriverIOKit.name])),
+				.target(name: "haptic_iokit", condition: .when(platforms: [.macOS])),
 			],
 			sources: ["swift/Sources/haptic/src"],
 		),
-		.sdlTarget(name: "haptic_driver_hidapi", sources: ["src/haptic/hidapi"]),
-		.sdlTarget(name: "haptic_driver_iokit", sources: ["src/haptic/darwin"], additionalLinkerSettings: []),
+		.sdlTarget(name: "haptic_hidapi", sources: ["src/haptic/hidapi"]),
+		.sdlTarget(name: "haptic_iokit", sources: ["src/haptic/darwin"], additionalLinkerSettings: []),
 
 
 		// HIDAPI Subsystem Targets
@@ -1077,7 +1086,7 @@ let package = Package(
 		.sdlTarget(
 			name: "hidapi",
 			dependencies: [
-				// This is currently handleed completely by the trait defines.
+				// This is currently handled completely by the trait defines.
 			],
 			sources: ["swift/Sources/hidapi/src"],
 		),
@@ -1095,7 +1104,7 @@ let package = Package(
 			],
 			sources: ["swift/Sources/joystick/src"],
 		),
-		.sdlTarget(name: "joystick_driver_hidapi", dependencies: [.target(name: "haptic_driver_hidapi")], sources: ["src/joystick/hidapi"]),
+		.sdlTarget(name: "joystick_driver_hidapi", dependencies: [.target(name: "haptic_hidapi")], sources: ["src/joystick/hidapi"]),
 		.sdlTarget(name: "joystick_driver_iokit", sources: ["src/joystick/darwin"], additionalLinkerSettings: []),
 		.sdlTarget(name: "joystick_driver_mfi", sources: ["src/joystick/apple"], additionalLinkerSettings: []),
 		.sdlTarget(name: "joystick_driver_virtual", sources: ["src/joystick/virtual"]),
@@ -1111,6 +1120,18 @@ let package = Package(
 			sources: ["swift/Sources/notification/src"],
 		),
 		.sdlTarget(name: "notification_cocoa", sources: ["src/notification/cocoa"], additionalLinkerSettings: []),
+
+
+		// Power Subsystem Targets
+
+		.sdlTarget(
+			name: "power",
+			dependencies: [
+				.target(name: "power_macos", condition: .when(platforms: [.macOS])),
+			],
+			sources: ["swift/Sources/power/src"],
+		),
+		.sdlTarget(name: "power_macos", sources: ["src/power/macos"], additionalLinkerSettings: []),
 
 
 		// Render Subsystem Targets
