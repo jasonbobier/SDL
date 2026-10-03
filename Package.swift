@@ -87,7 +87,7 @@ extension Target {
 			publicHeadersPath: publicHeadersPath,
 			cSettings: [
 				.headerSearchPath("include"),
-				.headerSearchPath("swift/Sources/build_config"),
+				.headerSearchPath("swift/Sources/include/build_config"),
 				.headerSearchPath("include/build_config"),
 				.headerSearchPath("src"),
 				.unsafeFlags(["-fno-modules"]),
@@ -262,6 +262,9 @@ struct TraitDescription {
 		enableJoystickDriverMFI,
 		enableJoystickDriverVirtual,
 
+		enableDefaultNotification,
+		enableNotification,
+
 		enableDefaultRender,
 		enableRender,
 		enableRenderGPU,
@@ -360,6 +363,9 @@ struct TraitDescription {
 		static let sdlSwiftPMJoystickDriverIOKitEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_IOKIT_ENABLED"
 		static let sdlSwiftPMJoystickDriverMFIEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_MFI_ENABLED"
 		static let sdlSwiftPMJoystickDriverVirtualEnabled = "SDL_SWIFTPM_JOYSTICK_DRIVER_VIRTUAL_ENABLED"
+
+		// Notification Subsystem Defines
+		static let sdlSwiftPMNotificationEnabled = "SDL_SWIFTPM_NOTIFICATION_ENABLED"
 
 		// Render Subsystem Defines
 		static let sdlSwiftPMRenderEnabled = "SDL_SWIFTPM_RENDER_ENABLED"
@@ -600,6 +606,23 @@ struct TraitDescription {
 	)
 
 
+	// Notification Subsystem Traits
+
+	static let enableDefaultNotification = TraitDescription(
+		name: "EnableDefaultNotification",
+		description: "Enable the default notification subsystem for a platform.",
+		isDefault: true,
+		cSettingDefines: [
+			.define(CSettingDefine.sdlSwiftPMNotificationEnabled, .when(platforms: [.macOS])),
+		]
+	)
+	static let enableNotification = TraitDescription(
+		name: "EnableNotification",
+		description: "Enable the Notification subsystem (CMake: SDL_NOTIFICATION=ON).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMNotificationEnabled)]
+	)
+
+
 	// Render Subsystem Traits
 
 	static let enableDefaultRender = TraitDescription(
@@ -709,7 +732,7 @@ struct TraitDescription {
 // Matches CMake's BUILD_DEPENDENT for tests
 let buildDependentCSettings: [CSetting] = [
 	.headerSearchPath("../src"),
-	.headerSearchPath("../swift/Sources/build_config"),
+	.headerSearchPath("../swift/Sources/include/build_config"),
 	.unsafeFlags(["-idirafter", "\(Context.packageDirectory)/include/build_config"]),
 ] + TraitDescription.allCSettings
 
@@ -760,7 +783,9 @@ let package = Package(
 				.target(name: "dialog", condition: .when(traits: [TraitDescription.enableDialog.name])),
 				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableGPU.name])),
 				.target(name: "haptic", condition: .when(traits: [TraitDescription.enableHaptic.name])),
+				.target(name: "hidapi", condition: .when(traits: [TraitDescription.enableHIDAPI.name])),
 				.target(name: "joystick", condition: .when(traits: [TraitDescription.enableJoystick.name])),
+				.target(name: "notification", condition: .when(traits: [TraitDescription.enableNotification.name])),
 				.target(name: "render", condition: .when(traits: [TraitDescription.enableRender.name])),
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableVideo.name])),
 			],
@@ -802,7 +827,8 @@ let package = Package(
 					"src/test",
 				],
 			sources: [
-				"src"
+				"src",
+				"swift/Sources/SimpleDirectMediaLayer/src",
 			],
 			publicHeadersPath: "include",
 			additionalCSettings: [
@@ -824,7 +850,7 @@ let package = Package(
 				.target(name: "SimpleDirectMediaLayer")
 			],
 			sources: [
-				"swift/Sources/SimpleDirectMediaLayerDynamic"
+				"swift/Sources/SimpleDirectMediaLayerDynamic/src"
 			],
 			publicHeadersPath: "include",
 			additionalLinkerSettings: [
@@ -896,10 +922,15 @@ let package = Package(
 				.target(name: "gpu_metal", condition: .when(traits: [TraitDescription.enableDefaultGPU.name])),
 
 
-				// Joystick Subsystem Default Dependencies
+				// Haptic Subsystem Default Dependencies
 
 				.target(name: "haptic", condition: .when(traits: [TraitDescription.enableDefaultHaptic.name])),
 				.target(name: "haptic_driver_iokit", condition: .when(traits: [TraitDescription.enableDefaultHaptic.name])),
+
+
+				// HIDAPI Subsystem Default Dependencies
+
+				.target(name: "hidapi", condition: .when(traits: [TraitDescription.enableDefaultHIDAPI.name])),
 
 
 				// Joystick Subsystem Default Dependencies
@@ -909,6 +940,11 @@ let package = Package(
 				.target(name: "joystick_driver_iokit", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
 				.target(name: "joystick_driver_mfi", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
 				.target(name: "joystick_driver_virtual", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+
+
+				// Notification Subsystem Default Dependencies
+
+				.target(name: "notification", condition: .when(traits: [TraitDescription.enableDefaultNotification.name])),
 
 
 				// Render Subsystem Default Dependencies
@@ -930,7 +966,6 @@ let package = Package(
 				"src/filesystem/cocoa",
 				"src/locale/macos",
 				"src/misc/macos",
-				"src/notification/cocoa",
 				"src/power/macos",
 				"src/tray/cocoa",
 			],
@@ -977,7 +1012,7 @@ let package = Package(
 				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableAudioDriverDisk.name])),
 				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableAudioDriverDummy.name])),
 			],
-			sources: ["swift/Sources/audio"],
+			sources: ["swift/Sources/audio/src"],
 		),
 		.sdlTarget(name: "audio_driver_coreaudio", sources: ["src/audio/coreaudio"], additionalLinkerSettings: [.linkedFramework("AudioToolbox"), .linkedFramework("CoreAudio")]),
 		.sdlTarget(name: "audio_driver_disk", sources: ["src/audio/disk"]),
@@ -992,7 +1027,7 @@ let package = Package(
 				.target(name: "camera_driver_coremedia", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableCameraDriverCoreMedia.name])),
 				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableCameraDriverDummy.name])),
 			],
-			sources: ["swift/Sources/camera"],
+			sources: ["swift/Sources/camera/src"],
 		),
 		.sdlTarget(name: "camera_driver_coremedia", sources: ["src/camera/coremedia"], additionalLinkerSettings: [.linkedFramework("AVFoundation"), .linkedFramework("CoreMedia")]),
 		.sdlTarget(name: "camera_driver_dummy", sources: ["src/camera/dummy"]),
@@ -1018,7 +1053,7 @@ let package = Package(
 				.target(name: "gpu_metal", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoMetal.name, TraitDescription.enableDefaultVideo.name])),
 				.target(name: "gpu_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoVulkan.name])),
 			],
-			sources: ["swift/Sources/gpu"],
+			sources: ["swift/Sources/gpu/src"],
 		),
 		.sdlTarget(name: "gpu_metal",additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]), sources: ["src/gpu/metal"]),
 		.sdlTarget(name: "gpu_vulkan", sources: ["src/gpu/vulkan"]),
@@ -1031,10 +1066,21 @@ let package = Package(
 			dependencies: [
 				.target(name: "haptic_driver_iokit", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableHapticDriverIOKit.name])),
 			],
-			sources: ["swift/Sources/haptic"],
+			sources: ["swift/Sources/haptic/src"],
 		),
 		.sdlTarget(name: "haptic_driver_hidapi", sources: ["src/haptic/hidapi"]),
 		.sdlTarget(name: "haptic_driver_iokit", sources: ["src/haptic/darwin"], additionalLinkerSettings: []),
+
+
+		// HIDAPI Subsystem Targets
+
+		.sdlTarget(
+			name: "hidapi",
+			dependencies: [
+				// This is currently handleed completely by the trait defines.
+			],
+			sources: ["swift/Sources/hidapi/src"],
+		),
 
 
 		// Joystick Subsystem Targets
@@ -1047,12 +1093,24 @@ let package = Package(
 				.target(name: "joystick_driver_mfi", condition: .when(platforms: [.macOS])),	// Unfortunately, the core always needs this when the joystick is enabled.
 				.target(name: "joystick_driver_virtual", condition: .when(traits: [TraitDescription.enableJoystickDriverVirtual.name])),
 			],
-			sources: ["swift/Sources/joystick"],
+			sources: ["swift/Sources/joystick/src"],
 		),
 		.sdlTarget(name: "joystick_driver_hidapi", dependencies: [.target(name: "haptic_driver_hidapi")], sources: ["src/joystick/hidapi"]),
 		.sdlTarget(name: "joystick_driver_iokit", sources: ["src/joystick/darwin"], additionalLinkerSettings: []),
 		.sdlTarget(name: "joystick_driver_mfi", sources: ["src/joystick/apple"], additionalLinkerSettings: []),
 		.sdlTarget(name: "joystick_driver_virtual", sources: ["src/joystick/virtual"]),
+
+
+		// Notification Subsystem Targets
+
+		.sdlTarget(
+			name: "notification",
+			dependencies: [
+				.target(name: "notification_cocoa", condition: .when(platforms: [.macOS])),
+			],
+			sources: ["swift/Sources/notification/src"],
+		),
+		.sdlTarget(name: "notification_cocoa", sources: ["src/notification/cocoa"], additionalLinkerSettings: []),
 
 
 		// Render Subsystem Targets
@@ -1065,7 +1123,7 @@ let package = Package(
 				.target(name: "render_opengl", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGL.name, TraitDescription.enableDefaultVideo.name])),
 				.target(name: "render_opengles2", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGLES.name])),
 				.target(name: "render_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderVulkan.name])),			],
-			sources: ["swift/Sources/render"],
+			sources: ["swift/Sources/render/src"],
 		),
 		.sdlTarget(name: "render_gpu", additionalExcludes: ["src/render/gpu/shaders"], sources: ["src/render/gpu"]),
 		.sdlTarget(name: "render_metal", additionalExcludes: contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]), sources: ["src/render/metal"]),
@@ -1082,7 +1140,7 @@ let package = Package(
 				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableVideoDriverDummy.name])),
 				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableVideoDriverOffscreen.name])),
 			],
-			sources: ["swift/Sources/video"],
+			sources: ["swift/Sources/video/src"],
 		),
 		.sdlTarget(name: "video_driver_cocoa", sources: ["src/video/cocoa"], additionalLinkerSettings: []),
 		.sdlTarget(name: "video_driver_dummy", sources: ["src/video/dummy"]),
