@@ -226,7 +226,7 @@ static bool PS2_QueueSetViewport(SDL_Renderer *renderer, SDL_RenderCommand *cmd)
 
     data->gsGlobal->OffsetX = (int)((2048.0f + (float)viewport->x) * 16.0f);
     data->gsGlobal->OffsetY = (int)((2048.0f + (float)viewport->y) * 16.0f);
-    gsKit_set_scissor(data->gsGlobal, GS_SETREG_SCISSOR(viewport->x, viewport->x + viewport->w, viewport->y, viewport->y + viewport->h));
+    gsKit_set_scissor(data->gsGlobal, GS_SETREG_SCISSOR(viewport->x, viewport->x + viewport->w - 1, viewport->y, viewport->y + viewport->h - 1));
 
     return true;
 }
@@ -298,7 +298,10 @@ static bool PS2_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SD
             col_ = (SDL_FColor *)((char *)color + j * color_stride);
             uv_ = (float *)((char *)uv + j * uv_stride);
 
-            vertices->xyz2 = vertex_to_XYZ2(data->gsGlobal, xy_[0] * scale_x, xy_[1] * scale_y, 0);
+            /* Texel (0,0) is the corner of the top-left texel, but pixel
+               (0,0) is the center of the top-left pixel - align them so
+               textured draws land 1:1 (ps2dev/gsKit#11). */
+            vertices->xyz2 = vertex_to_XYZ2(data->gsGlobal, xy_[0] * scale_x - 0.5f, xy_[1] * scale_y - 0.5f, 0);
             vertices->rgbaq = float_color_to_RGBAQ_tex(col_, color_scale);
             vertices->uv = vertex_to_UV(ps2_tex, uv_[0] * ps2_tex->Width, uv_[1] * ps2_tex->Height);
 
@@ -358,7 +361,7 @@ static bool PS2_RenderSetClipRect(SDL_Renderer *renderer, SDL_RenderCommand *cmd
         viewport->w = SDL_min(viewport->w, rect->w);
         viewport->h = SDL_min(viewport->h, rect->h);
     }
-    gsKit_set_scissor(data->gsGlobal, GS_SETREG_SCISSOR(viewport->x, viewport->x + viewport->w, viewport->y, viewport->y + viewport->h));
+    gsKit_set_scissor(data->gsGlobal, GS_SETREG_SCISSOR(viewport->x, viewport->x + viewport->w - 1, viewport->y, viewport->y + viewport->h - 1));
 
     return true;
 }
@@ -393,7 +396,7 @@ static bool PS2_RenderClear(SDL_Renderer *renderer, SDL_RenderCommand *cmd)
 
     // // Put back view port
     viewport = data->viewport;
-    gsKit_set_scissor(data->gsGlobal, GS_SETREG_SCISSOR(viewport->x, viewport->x + viewport->w, viewport->y, viewport->y + viewport->h));
+    gsKit_set_scissor(data->gsGlobal, GS_SETREG_SCISSOR(viewport->x, viewport->x + viewport->w - 1, viewport->y, viewport->y + viewport->h - 1));
 
     return true;
 }
@@ -710,7 +713,20 @@ static bool PS2_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_P
         }
     }
 
+    // GS color depth
     gsGlobal->PSM = GS_PSM_CT24;
+
+    hint = SDL_GetHint(SDL_HINT_PS2_GS_COLOR_DEPTH);
+    if (hint) {
+        if (SDL_strcmp(hint, "32") == 0) {
+            gsGlobal->PSM = GS_PSM_CT32;
+        } else if (SDL_strcmp(hint, "24") == 0) {
+            gsGlobal->PSM = GS_PSM_CT24;
+        } else if (SDL_strcmp(hint, "16") == 0) {
+            gsGlobal->PSM = GS_PSM_CT16;
+        }
+    }
+
     gsGlobal->PSMZ = GS_PSMZ_16S;
     gsGlobal->ZBuffering = GS_SETTING_OFF;
     gsGlobal->DoubleBuffering = GS_SETTING_ON;
@@ -734,7 +750,18 @@ static bool PS2_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_P
 
     gsKit_mode_switch(gsGlobal, GS_ONESHOT);
 
+    // gsKit_vram_clear() doesn't touch physical VRAM - flip twice so both
+    // physical buffers are black before anything can see either of them
+    // (otherwise the previous app's framebuffer/power-on garbage shows
+    // through on whichever buffer the single flip missed).
     gsKit_clear(gsGlobal, GS_BLACK);
+    gsKit_queue_exec(gsGlobal);
+    gsKit_finish();
+    gsKit_flip(gsGlobal);
+    gsKit_clear(gsGlobal, GS_BLACK);
+    gsKit_queue_exec(gsGlobal);
+    gsKit_finish();
+    gsKit_flip(gsGlobal);
 
     data->gsGlobal = gsGlobal;
 
