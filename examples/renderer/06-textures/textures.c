@@ -57,11 +57,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 #endif
     surface = SDL_LoadPNG(png_path);
     if (!surface) {
-        SDL_Log("Couldn't load bitmap: %s", SDL_GetError());
+        SDL_Log("Couldn't load png: %s", SDL_GetError());
         SDL_free(png_path);
         return SDL_APP_FAILURE;
     }
-    
+
     SDL_free(png_path);  /* done with this, the file is loaded. */
 
     texture_width = surface->w;

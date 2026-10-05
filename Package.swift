@@ -276,8 +276,8 @@ struct TraitDescription {
 		enableVideoMetal,
 		enableVideoVulkan,
 
-		enableSteamStorage,
 		enableLeanAndMean,
+		enableSteamStorage,
 	]
 
 	static var allTraits: [Trait] {
@@ -671,7 +671,7 @@ struct TraitDescription {
 	static let enableRenderMetal = TraitDescription(
 		name: "EnableRenderMetal",
 		description: "Enable the Metal driver for the render subsystem (CMake: SDL_RENDER_METAL=ON).",
-		enabledTraits: [enableRender.name, enableVideoMetal.name],
+		enabledTraits: [enableRender.name, enableVideoMetal.name, enableVideoDriverCocoa.name],
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderMetalEnabled, .when(platforms: [.macOS]))]
 	)
 	static let enableRenderVulkan = TraitDescription(
@@ -781,6 +781,7 @@ struct TraitDescription {
 
 
 	// Additional Traits
+
 	static let enableLeanAndMean = TraitDescription(
 		name: "EnableLeanAndMean",
 		description: "Build a lean SDL library with reduced graphics functionality (CMake: SDL_LEAN_AND_MEAN=ON).",
@@ -823,14 +824,14 @@ let package = Package(
 		.package(url: "https://github.com/apple/swift-system", from: "1.8.1"),
 	],
 	targets: [
-		
-		
+
+
 		// MARK: - Public Libraries
-		
+
 		.sdlTarget(
 			name: "SimpleDirectMediaLayer",
 			dependencies: [
-				//				.target(name: "apple", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS])),
+
 				// Platform Dependencies
 
 				.target(name: "macOS", condition: .when(platforms: [.macOS])),
@@ -912,7 +913,7 @@ let package = Package(
 				"BuildSDLRevisionHeaderPlugin",
 			]
 		),
-		
+
 		// We need a wrapper target for this to use the exported symbols list properly
 		.sdlTarget(
 			name: "SimpleDirectMediaLayerDynamic",
@@ -944,23 +945,6 @@ let package = Package(
 
 
 		// MARK: - Platform Targets
-		/*
-		 .target(
-		 name: "apple",
-		 path: ".",
-		 exclude: excludeList,
-		 sources: [
-		 ],
-		 publicHeadersPath: "swift/Sources/apple/include",
-		 cSettings: [
-		 .headerSearchPath("include"),
-		 .headerSearchPath("include/build_config"),
-		 .headerSearchPath("src"),
-		 .headerSearchPath("src/video/khronos"),
-		 .unsafeFlags(["-fno-modules"])
-		 ],
-		 ),
-		 */
 
 		.sdlTarget(
 			name: "macOS",
@@ -1052,20 +1036,8 @@ let package = Package(
 				"src/misc/macos",
 			],
 			additionalLinkerSettings: [
-//				.linkedFramework("AppKit"),
-//				.linkedFramework("Carbon"),
-				//				.linkedFramework("CoreFoundation"),
-				//				.linkedFramework("CoreGraphics"),
-	//				.linkedFramework("CoreHaptics"),
-				//				.linkedFramework("CoreVideo"),
-//				.linkedFramework("ForceFeedback"),
-//				.linkedFramework("GameController"),
-//				.linkedFramework("IOKit"),
-//				.linkedFramework("Metal"),
-//				.linkedFramework("QuartzCore"),
-//				.linkedFramework("Security"),
-//				.linkedFramework("UniformTypeIdentifiers"),
-//				.linkedFramework("UserNotifications"),
+				.linkedFramework("CoreServices"),
+				.linkedFramework("Foundation"),
 			],
 		),
 
@@ -1096,7 +1068,14 @@ let package = Package(
 			],
 			sources: ["swift/Sources/audio/src"],
 		),
-		.sdlTarget(name: "audio_driver_coreaudio", sources: ["src/audio/coreaudio"], additionalLinkerSettings: [.linkedFramework("AudioToolbox"), .linkedFramework("CoreAudio")]),
+		.sdlTarget(
+			name: "audio_driver_coreaudio",
+			sources: ["src/audio/coreaudio"],
+			additionalLinkerSettings: [
+				.linkedFramework("AudioToolbox", .when(platforms: [.macOS])),
+				.linkedFramework("CoreAudio", .when(platforms: [.macOS]))
+			]
+		),
 		.sdlTarget(name: "audio_driver_disk", sources: ["src/audio/disk"]),
 		.sdlTarget(name: "audio_driver_dummy", sources: ["src/audio/dummy"]),
 
@@ -1111,7 +1090,15 @@ let package = Package(
 			],
 			sources: ["swift/Sources/camera/src"],
 		),
-		.sdlTarget(name: "camera_driver_coremedia", sources: ["src/camera/coremedia"], additionalLinkerSettings: [.linkedFramework("AVFoundation"), .linkedFramework("CoreMedia")]),
+		.sdlTarget(
+			name: "camera_driver_coremedia",
+			sources: ["src/camera/coremedia"],
+			additionalLinkerSettings: [
+				.linkedFramework("AVFoundation", .when(platforms: [.macOS])),
+				.linkedFramework("CoreVideo", .when(platforms: [.macOS])),
+				.linkedFramework("CoreMedia", .when(platforms: [.macOS]))
+			]
+		),
 		.sdlTarget(name: "camera_driver_dummy", sources: ["src/camera/dummy"]),
 
 
@@ -1124,7 +1111,14 @@ let package = Package(
 			],
 			sources: ["src/dialog/SDL_dialog_utils.c"],
 		),
-		.sdlTarget(name: "dialog_cocoa", sources: ["src/dialog/cocoa"], additionalLinkerSettings: [.linkedFramework("AppKit")]),
+		.sdlTarget(
+			name: "dialog_cocoa",
+			sources: ["src/dialog/cocoa"],
+			additionalLinkerSettings: [
+				.linkedFramework("AppKit", .when(platforms: [.macOS])),
+				.linkedFramework("UniformTypeIdentifiers", .when(platforms: [.macOS]))
+			]
+		),
 
 
 		// GPU Subsystem Targets
@@ -1137,7 +1131,15 @@ let package = Package(
 			],
 			sources: ["swift/Sources/gpu/src"],
 		),
-		.sdlTarget(name: "gpu_metal",additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]), sources: ["src/gpu/metal"]),
+		.sdlTarget(
+			name: "gpu_metal",
+			additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]),
+			sources: ["src/gpu/metal"],
+			additionalLinkerSettings: [
+				.linkedFramework("CoreGraphics", .when(platforms: [.macOS])),
+				.linkedFramework("Metal", .when(platforms: [.macOS]))
+			]
+		),
 		.sdlTarget(name: "gpu_vulkan", sources: ["src/gpu/vulkan"]),
 
 
@@ -1151,7 +1153,14 @@ let package = Package(
 			sources: ["swift/Sources/haptic/src"],
 		),
 		.sdlTarget(name: "haptic_hidapi", sources: ["src/haptic/hidapi"]),
-		.sdlTarget(name: "haptic_iokit", sources: ["src/haptic/darwin"], additionalLinkerSettings: []),
+		.sdlTarget(
+			name: "haptic_iokit",
+			sources: ["src/haptic/darwin"],
+			additionalLinkerSettings: [
+				.linkedFramework("ForceFeedback", .when(platforms: [.macOS])),
+				.linkedFramework("IOKit", .when(platforms: [.macOS])),
+			]
+		),
 
 
 		// HIDAPI Subsystem Targets
@@ -1162,6 +1171,9 @@ let package = Package(
 				// This is currently handled completely by the trait defines.
 			],
 			sources: ["swift/Sources/hidapi/src"],
+			additionalLinkerSettings: [
+				.linkedFramework("IOKit", .when(platforms: [.macOS])),
+			]
 		),
 
 
@@ -1177,9 +1189,31 @@ let package = Package(
 			],
 			sources: ["swift/Sources/joystick/src"],
 		),
-		.sdlTarget(name: "joystick_driver_hidapi", dependencies: [.target(name: "haptic_hidapi")], sources: ["src/joystick/hidapi"]),
-		.sdlTarget(name: "joystick_driver_iokit", sources: ["src/joystick/darwin"], additionalLinkerSettings: []),
-		.sdlTarget(name: "joystick_driver_mfi", sources: ["src/joystick/apple"], additionalLinkerSettings: []),
+		.sdlTarget(
+			name: "joystick_driver_hidapi",
+			dependencies: [.target(name: "haptic_hidapi")],
+			sources: ["src/joystick/hidapi"],
+			additionalLinkerSettings: [
+				.linkedFramework("IOKit", .when(platforms: [.macOS])),
+			]
+		),
+		.sdlTarget(
+			name: "joystick_driver_iokit",
+			sources: ["src/joystick/darwin"],
+			additionalLinkerSettings: [
+				.linkedFramework("ForceFeedback", .when(platforms: [.macOS])),
+				.linkedFramework("IOKit", .when(platforms: [.macOS])),
+			]
+		),
+		.sdlTarget(
+			name: "joystick_driver_mfi",
+			sources: ["src/joystick/apple"],
+			additionalLinkerSettings: [
+				.linkedFramework("CoreHaptics", .when(platforms: [.macOS], traits: [TraitDescription.enableJoystickDriverMFI.name, TraitDescription.enableDefaultJoystick.name])),
+				.linkedFramework("GameController", .when(platforms: [.macOS])),
+				.linkedFramework("IOKit", .when(platforms: [.macOS], traits: [TraitDescription.enableJoystickDriverMFI.name, TraitDescription.enableDefaultJoystick.name])),
+			]
+		),
 		.sdlTarget(name: "joystick_driver_virtual", sources: ["src/joystick/virtual"]),
 
 
@@ -1192,7 +1226,15 @@ let package = Package(
 			],
 			sources: ["swift/Sources/notification/src"],
 		),
-		.sdlTarget(name: "notification_cocoa", sources: ["src/notification/cocoa"], additionalLinkerSettings: []),
+		.sdlTarget(
+			name: "notification_cocoa",
+			sources: ["src/notification/cocoa"],
+			additionalLinkerSettings: [
+				.linkedFramework("CoreServices", .when(platforms: [.macOS])),
+				.linkedFramework("Security", .when(platforms: [.macOS])),
+				.linkedFramework("UserNotifications", .when(platforms: [.macOS])),
+			]
+		),
 
 
 		// Power Subsystem Targets
@@ -1204,7 +1246,13 @@ let package = Package(
 			],
 			sources: ["swift/Sources/power/src"],
 		),
-		.sdlTarget(name: "power_macos", sources: ["src/power/macos"], additionalLinkerSettings: []),
+		.sdlTarget(
+			name: "power_macos",
+			sources: ["src/power/macos"],
+			additionalLinkerSettings: [
+				.linkedFramework("IOKit", .when(platforms: [.macOS])),
+			]
+		),
 
 
 		// Render Subsystem Targets
@@ -1216,11 +1264,21 @@ let package = Package(
 				.target(name: "render_metal", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderMetal.name])),
 				.target(name: "render_opengl", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGL.name, TraitDescription.enableDefaultVideo.name])),
 				.target(name: "render_opengles2", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGLES.name])),
-				.target(name: "render_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderVulkan.name])),			],
+				.target(name: "render_vulkan", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableRenderVulkan.name])),
+			],
 			sources: ["swift/Sources/render/src"],
 		),
 		.sdlTarget(name: "render_gpu", additionalExcludes: ["src/render/gpu/shaders"], sources: ["src/render/gpu"]),
-		.sdlTarget(name: "render_metal", additionalExcludes: contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]), sources: ["src/render/metal"]),
+		.sdlTarget(
+			name: "render_metal",
+			additionalExcludes: contentsOfDirectory(path: "src/render/metal", files: true, withExtensions: ["sh", "metal"]),
+			sources: ["src/render/metal"],
+			additionalLinkerSettings: [
+				.linkedFramework("CoreGraphics", .when(platforms: [.macOS])),
+				.linkedFramework("CoreVideo", .when(platforms: [.macOS])),
+				.linkedFramework("Metal", .when(platforms: [.macOS])),
+			]
+		),
 		.sdlTarget(name: "render_opengl", sources: ["src/render/opengl"]),
 		.sdlTarget(name: "render_opengles2", sources: ["src/render/opengles2"]),
 		.sdlTarget(name: "render_vulkan", additionalExcludes: contentsOfDirectory(path: "src/render/vulkan", files: true, withExtensions: ["bat", "hlsl", "hlsli"]), sources: ["src/render/vulkan"]),
@@ -1245,7 +1303,13 @@ let package = Package(
 			],
 			sources: ["swift/Sources/tray/src"],
 		),
-		.sdlTarget(name: "tray_cocoa", sources: ["src/tray/cocoa"], additionalLinkerSettings: []),
+		.sdlTarget(
+			name: "tray_cocoa",
+			sources: ["src/tray/cocoa"],
+			additionalLinkerSettings: [
+				.linkedFramework("AppKit", .when(platforms: [.macOS])),
+			]
+		),
 
 
 		// Video Subsystem Targets
@@ -1259,7 +1323,20 @@ let package = Package(
 			],
 			sources: ["swift/Sources/video/src"],
 		),
-		.sdlTarget(name: "video_driver_cocoa", sources: ["src/video/cocoa"], additionalLinkerSettings: []),
+		.sdlTarget(
+			name: "video_driver_cocoa",
+			sources: ["src/video/cocoa"],
+			additionalLinkerSettings: [
+				.linkedFramework("AppKit", .when(platforms: [.macOS])),
+				.linkedFramework("Carbon", .when(platforms: [.macOS])),
+				.linkedFramework("CoreServices", .when(platforms: [.macOS])),
+				.linkedFramework("CoreVideo", .when(platforms: [.macOS])),
+				.linkedFramework("GameController", .when(platforms: [.macOS])),
+				.linkedFramework("IOKit", .when(platforms: [.macOS])),
+				.linkedFramework("QuartzCore", .when(platforms: [.macOS], traits: [TraitDescription.enableVideoVulkan.name])),
+				.linkedFramework("UniformTypeIdentifiers", .when(platforms: [.macOS])),
+			]
+		),
 		.sdlTarget(name: "video_driver_dummy", sources: ["src/video/dummy"]),
 		.sdlTarget(name: "video_driver_offscreen", sources: ["src/video/offscreen"]),
 
@@ -1334,8 +1411,8 @@ let package = Package(
 		.sdlTestExecutable(name: "testver"),
 		.sdlTestExecutable(name: "testyuv", additionalDependencies: ["testutils"], additionalSources: ["testyuv_cvt.c"]),
 		.sdlTestExecutable(name: "torturethread"),
-		
-		
+
+
 		// MARK: - Standalone SDL Test Executables
 
 		.sdlTestExecutable(name: "checkkeys"),
@@ -1438,8 +1515,8 @@ let package = Package(
 			],
 			path: ".",
 			exclude:
-				createExcludePaths(for: ".", keeping: ["swift/Sources/TestResources", "swift/test"])
-			+ contentsOfDirectory(path: "test", files: true, withExtensions: ["c", "cpp", "dat", "h", "hlsl", "in", "m", "markdown", "sh", "txt", "xbm", ""], directories: true, except: ["moose.dat", "utf8.txt"]),
+				createExcludePaths(for: ".", keeping: ["swift/Sources/TestResources"])
+				+ contentsOfDirectory(path: "test", files: true, withExtensions: ["c", "cpp", "dat", "h", "hlsl", "in", "m", "markdown", "sh", "txt", "xbm", ""], directories: true, except: ["moose.dat", "utf8.txt"]),
 			sources: [
 				"swift/Sources/TestResources",
 			],

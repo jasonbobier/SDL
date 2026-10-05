@@ -62,7 +62,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     if (!SDL_LoadWAV(wav_path, &spec, &wav_data, &wav_data_len)) {
         SDL_Log("Couldn't load .wav file: %s", SDL_GetError());
         SDL_free(wav_path);
-       return SDL_APP_FAILURE;
+        return SDL_APP_FAILURE;
     }
 
     SDL_free(wav_path);  /* done with this string. */

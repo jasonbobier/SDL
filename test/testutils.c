@@ -102,7 +102,6 @@ char *GetNearbyFilename(const char *file)
         }
 #endif
 
-
         /* Couldn't find the file in the base path */
         SDL_free(path);
     }

@@ -2438,7 +2438,7 @@ static bool SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, NSWindow
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-        
+
         if (window->flags & SDL_WINDOW_EXTERNAL) {
             // Query the title from the existing window
             NSString *title = [nswindow title];
@@ -3376,7 +3376,7 @@ void Cocoa_AcceptDragAndDrop(SDL_Window *window, bool accept)
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
             // UTTypeFileURL / UTTypeUTF8PlainText don't exist before macOS 11.0.
-           [data.nswindow registerForDraggedTypes:@[ (NSString *)kUTTypeFileURL,
+            [data.nswindow registerForDraggedTypes:@[ (NSString *)kUTTypeFileURL,
                                                       (NSString *)kUTTypeUTF8PlainText ]];
 #ifdef __clang__
 #pragma clang diagnostic pop
