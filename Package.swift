@@ -278,6 +278,7 @@ struct TraitDescription {
 
 		enableLeanAndMean,
 		enableSteamStorage,
+		enableTestFFmpeg,
 	]
 
 	static var allTraits: [Trait] {
@@ -392,6 +393,7 @@ struct TraitDescription {
 		// Additional Defines
 		static let sdlSwiftPMLeanAndMeanEnabled = "SDL_SWIFTPM_LEAN_AND_MEAN_ENABLED"
 		static let sdlSwiftPMSteamStorageEnabled = "SDL_SWIFTPM_STEAM_STORAGE_ENABLED"
+		static let sdlSwiftPMTestFFmpegEnabled = "SDL_SWIFTPM_TEST_FFMPEG_ENABLED"
 	}
 
 
@@ -791,6 +793,11 @@ struct TraitDescription {
 		name: "EnableSteamStorage",
 		description: "Enable the Steam user storage backend (CMake: no separate option).",
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMSteamStorageEnabled, .when(platforms: [.macOS]))],
+	)
+	static let enableTestFFmpeg = TraitDescription(
+		name: "EnableTestFFmpeg",
+		description: "Enable the FFmpeg test. Requires FFmpeg 5.1 or greater to build and link against. (CMake: no separate option).",
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMTestFFmpegEnabled)],
 	)
 }
 
@@ -1436,7 +1443,30 @@ let package = Package(
 		.sdlTestExecutable(name: "testdrawchessboard"),
 		.sdlTestExecutable(name: "testdropfile"),
 		.sdlTestExecutable(name: "testdynaudioreopen", additionalDependencies: ["testutils"]),
-//		.sdlTestExecutable(name: "testffmpeg", additionalSources: ["testffmpeg_vulkan.c"]),	// Requires FFmpeg > 5.1.3, can we #define around it?
+
+		// We have to special case testffmpeg to handle ffmpeg being installed or not.
+		.executableTarget(
+			name: "testffmpeg",
+			dependencies: [
+				.target(name: "SimpleDirectMediaLayer"),
+				.target(name: "SDL3_test"),
+			],
+			path: "swift/Sources/testffmpeg",
+			cSettings: [
+				.unsafeFlags(["-include", "\(Context.packageDirectory)/swift/Sources/SimpleDirectMediaLayer/include/SDL3/SDL_revision.h"]),
+				.define("HAVE_BUILD_CONFIG"),	// CMake defines it for all tests even though only used by some
+				.define("HAVE_SIGNAL_H"),
+				.headerSearchPath("../../../src/video/khronos"),
+			] + TraitDescription.allCSettings,
+			linkerSettings: [
+				.linkedLibrary("avcodec", .when(traits: [TraitDescription.enableTestFFmpeg.name])),
+				.linkedLibrary("avformat", .when(traits: [TraitDescription.enableTestFFmpeg.name])),
+				.linkedLibrary("avutil", .when(traits: [TraitDescription.enableTestFFmpeg.name])),
+				.linkedLibrary("swscale", .when(traits: [TraitDescription.enableTestFFmpeg.name])),
+				.linkedFramework("CoreVideo", .when(platforms: [.macOS], traits: [TraitDescription.enableTestFFmpeg.name])),
+			],
+		),
+
 		.sdlTestExecutable(name: "testgeometry", additionalDependencies: ["testutils"]),
 		.sdlTestExecutable(
 			name: "testgl",
