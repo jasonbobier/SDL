@@ -796,7 +796,7 @@ struct TraitDescription {
 	)
 	static let enableTestFFmpeg = TraitDescription(
 		name: "EnableTestFFmpeg",
-		description: "Enable the FFmpeg test. Requires FFmpeg 5.1 or greater to build and link against. (CMake: no separate option).",
+		description: "Enable the FFmpeg test which requires FFmpeg 5.1 or greater to build and link against (CMake: no separate option).",
 		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMTestFFmpegEnabled)],
 	)
 }
