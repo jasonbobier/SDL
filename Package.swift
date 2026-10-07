@@ -817,7 +817,8 @@ let buildDependentCSettings: [CSetting] = [
 let package = Package(
 	name: "SimpleDirectMediaLayer",
 	platforms: [
-		.macOS(.v13)
+		.macOS(.v13),
+		.iOS(.v15),
 	],
 	products: [
 		.library(name: "SimpleDirectMediaLayer", targets: ["SimpleDirectMediaLayer"]),
@@ -841,6 +842,8 @@ let package = Package(
 
 				// Platform Dependencies
 
+				.target(name: "apple", condition: .when(platforms: [.iOS, .macOS])),
+				.target(name: "iOS", condition: .when(platforms: [.iOS])),
 				.target(name: "macOS", condition: .when(platforms: [.macOS])),
 				.target(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
 
@@ -889,7 +892,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/misc", directories: true)
 				+ contentsOfDirectory(path: "src/notification", directories: true)
 				+ contentsOfDirectory(path: "src/power", directories: true)
-				+ contentsOfDirectory(path: "src/process", directories: true)
+				+ contentsOfDirectory(path: "src/process", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/render", directories: true, except: ["software"])
 				+ contentsOfDirectory(path: "src/sensor", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/stdlib", files: true, withExtensions: ["masm"], directories: true)
@@ -952,6 +955,36 @@ let package = Package(
 
 
 		// MARK: - Platform Targets
+
+		.sdlTarget(
+			name: "apple",
+			dependencies: [
+
+			],
+			sources: [
+				"src/filesystem/cocoa",
+				"src/locale/macos",
+			],
+			additionalLinkerSettings: [
+				.linkedFramework("Foundation"),
+			],
+		),
+
+		.sdlTarget(
+			name: "iOS",
+			dependencies: [
+				// UIKit video driver is always linked to provide required symbols in main
+				.target(name: "video_driver_uikit"),
+			],
+			sources: [
+				"src/main/ios",
+				"src/misc/ios",
+			],
+			additionalLinkerSettings: [
+				.linkedFramework("QuartzCore"),
+				.linkedFramework("UIKit"),
+			],
+		),
 
 		.sdlTarget(
 			name: "macOS",
@@ -1038,13 +1071,11 @@ let package = Package(
 				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
 			],
 			sources: [
-				"src/filesystem/cocoa",
-				"src/locale/macos",
 				"src/misc/macos",
 			],
 			additionalLinkerSettings: [
-				.linkedFramework("CoreServices"),
 				.linkedFramework("Foundation"),
+				.linkedFramework("CoreServices"),
 			],
 		),
 
@@ -1327,6 +1358,7 @@ let package = Package(
 				.target(name: "video_driver_cocoa", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoDriverCocoa.name])),
 				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableVideoDriverDummy.name])),
 				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableVideoDriverOffscreen.name])),
+				.target(name: "video_driver_uikit", condition: .when(platforms: [.iOS])),
 			],
 			sources: ["swift/Sources/video/src"],
 		),
@@ -1346,6 +1378,17 @@ let package = Package(
 		),
 		.sdlTarget(name: "video_driver_dummy", sources: ["src/video/dummy"]),
 		.sdlTarget(name: "video_driver_offscreen", sources: ["src/video/offscreen"]),
+		.sdlTarget(
+			name: "video_driver_uikit",
+			additionalExcludes: contentsOfDirectory(path: "src/video/uikit", files: true, withExtensions: ["swift"]),
+			sources: ["src/video/uikit"],
+			additionalLinkerSettings: [
+				.linkedFramework("CoreGraphics", .when(platforms: [.iOS])),
+				.linkedFramework("GameController", .when(platforms: [.iOS])),
+				.linkedFramework("QuartzCore", .when(platforms: [.iOS])),
+				.linkedFramework("UIKit", .when(platforms: [.iOS])),
+			]
+		),
 
 
 		// Additional Targets

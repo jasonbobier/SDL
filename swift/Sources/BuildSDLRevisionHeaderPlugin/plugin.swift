@@ -48,13 +48,12 @@ struct BuildSDLRevisionHeaderPlugin: BuildToolPlugin {
 				outputFilesDirectory: emptyURL
 			),
 
-			// We have to add a build command here so that the include directory is picked up by a -I.
+			// We have to add a build command here so that the include directory is picked up by a -I. We use a no-op command.
 			// This is all part of the experimentalCGen.
 			.buildCommand(
 				displayName: "Add Include for BuildSDLRevisionHeader",
-				executable: try context.tool(named: "swift").url,
-				arguments: arguments,
-				environment: environment,
+				executable: URL(filePath: "/usr/bin/true"),
+				arguments: [],
 				outputFiles: [
 					headerURL,
 				]

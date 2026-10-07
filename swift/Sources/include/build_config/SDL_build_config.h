@@ -423,6 +423,10 @@
 #define SDL_VIDEO_DISABLED 1
 #endif
 
+#ifdef SDL_PLATFORM_IOS
+#define SDL_VIDEO_DRIVER_UIKIT 1    // Always enabled because the iOS code always requires it even if video is disabled.
+#endif
+
 
 // MARK: - Storage
 
