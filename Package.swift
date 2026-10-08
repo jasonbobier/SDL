@@ -404,10 +404,10 @@ struct TraitDescription {
 		description: "Enable the default audio subsystem and drivers for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMAudioEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMAudioDriverDiskEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMAudioDriverDummyEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverDiskEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverDummyEnabled, .when(platforms: [.iOS, .macOS])),
 		]
 	)
 	static let enableAudio = TraitDescription(
@@ -419,7 +419,7 @@ struct TraitDescription {
 		name: "EnableAudioDriverCoreAudio",
 		description: "Enable the CoreAudio driver for the audio subsystem (CMake: no separate option).",
 		enabledTraits: [enableAudio.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.macOS]))],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.iOS, .macOS]))],
 	)
 	static let enableAudioDriverDisk = TraitDescription(
 		name: "EnableAudioDriverDisk",
@@ -442,9 +442,9 @@ struct TraitDescription {
 		description: "Enable the default camera subsystem and drivers for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMCameraEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMCameraDriverDummyEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMCameraEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMCameraDriverDummyEnabled, .when(platforms: [.iOS, .macOS])),
 		]
 	)
 	static let enableCamera = TraitDescription(
@@ -456,7 +456,7 @@ struct TraitDescription {
 		name: "EnableCameraDriverCoreMedia",
 		description: "Enable the CoreMedia driver for the camera subsystem (CMake: no separate option).",
 		enabledTraits: [enableCamera.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled, .when(platforms: [.macOS]))],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled, .when(platforms: [.iOS, .macOS]))],
 	)
 	static let enableCameraDriverDummy = TraitDescription(
 		name: "EnableCameraDriverDummy",
@@ -473,7 +473,7 @@ struct TraitDescription {
 		description: "Enable the default dialog subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMDialogEnabled, .when(platforms: [.macOS])),
+			.define(CSettingDefine.sdlSwiftPMDialogEnabled, .when(platforms: [.iOS, .macOS])),
 		]
 	)
 	static let enableDialog = TraitDescription(
@@ -876,7 +876,7 @@ let package = Package(
 				+ contentsOfDirectory(path: "src/camera", directories: true)
 				+ contentsOfDirectory(path: "src/core", directories: true)
 				+ contentsOfDirectory(path: "src/cpuinfo", directories: true)
-				+ contentsOfDirectory(path: "src/dialog", directories: true)
+				+ contentsOfDirectory(path: "src/dialog", directories: true, except: ["dummy"])
 				+ contentsOfDirectory(path: "src/dynapi", files: true, withExtensions: ["exports", "sym", "py"], directories: true)
 				+ contentsOfDirectory(path: "src/events", directories: true)
 				+ contentsOfDirectory(path: "src/filesystem", directories: true)
@@ -973,6 +973,26 @@ let package = Package(
 		.sdlTarget(
 			name: "iOS",
 			dependencies: [
+				// Audio Subsystem Default Dependencies
+
+				.target(name: "audio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_coreaudio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+
+
+				// Camera Subsystem Default Dependencies
+
+				.target(name: "camera", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+				.target(name: "camera_driver_coremedia", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+
+				
+				// Dialog Subsystem Default Dependencies
+
+				.target(name: "dialog", condition: .when(traits: [TraitDescription.enableDefaultDialog.name])),
+
+
 				// UIKit video driver is always linked to provide required symbols in main
 				.target(name: "video_driver_uikit"),
 			],
@@ -1100,7 +1120,7 @@ let package = Package(
 		.sdlTarget(
 			name: "audio",
 			dependencies: [
-				.target(name: "audio_driver_coreaudio", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableAudioDriverCoreAudio.name])),
+				.target(name: "audio_driver_coreaudio", condition: .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableAudioDriverCoreAudio.name])),
 				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableAudioDriverDisk.name])),
 				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableAudioDriverDummy.name])),
 			],
@@ -1110,7 +1130,8 @@ let package = Package(
 			name: "audio_driver_coreaudio",
 			sources: ["src/audio/coreaudio"],
 			additionalLinkerSettings: [
-				.linkedFramework("AudioToolbox", .when(platforms: [.macOS])),
+				.linkedFramework("AudioToolbox", .when(platforms: [.iOS, .macOS])),
+				.linkedFramework("AVFoundation", .when(platforms: [.iOS])),
 				.linkedFramework("CoreAudio", .when(platforms: [.macOS]))
 			]
 		),
@@ -1123,7 +1144,7 @@ let package = Package(
 		.sdlTarget(
 			name: "camera",
 			dependencies: [
-				.target(name: "camera_driver_coremedia", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableCameraDriverCoreMedia.name])),
+				.target(name: "camera_driver_coremedia", condition: .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableCameraDriverCoreMedia.name])),
 				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableCameraDriverDummy.name])),
 			],
 			sources: ["swift/Sources/camera/src"],
@@ -1132,9 +1153,9 @@ let package = Package(
 			name: "camera_driver_coremedia",
 			sources: ["src/camera/coremedia"],
 			additionalLinkerSettings: [
-				.linkedFramework("AVFoundation", .when(platforms: [.macOS])),
-				.linkedFramework("CoreVideo", .when(platforms: [.macOS])),
-				.linkedFramework("CoreMedia", .when(platforms: [.macOS]))
+				.linkedFramework("AVFoundation", .when(platforms: [.iOS, .macOS])),
+				.linkedFramework("CoreVideo", .when(platforms: [.iOS, .macOS])),
+				.linkedFramework("CoreMedia", .when(platforms: [.iOS, .macOS]))
 			]
 		),
 		.sdlTarget(name: "camera_driver_dummy", sources: ["src/camera/dummy"]),
