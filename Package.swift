@@ -404,10 +404,10 @@ struct TraitDescription {
 		description: "Enable the default audio subsystem and drivers for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMAudioEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMAudioDriverDiskEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMAudioDriverDummyEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverDiskEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMAudioDriverDummyEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableAudio = TraitDescription(
@@ -419,7 +419,7 @@ struct TraitDescription {
 		name: "EnableAudioDriverCoreAudio",
 		description: "Enable the CoreAudio driver for the audio subsystem (CMake: no separate option).",
 		enabledTraits: [enableAudio.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.iOS, .macOS]))],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMAudioDriverCoreAudioEnabled, .when(platforms: [.iOS, .macOS, .tvOS]))],
 	)
 	static let enableAudioDriverDisk = TraitDescription(
 		name: "EnableAudioDriverDisk",
@@ -442,9 +442,9 @@ struct TraitDescription {
 		description: "Enable the default camera subsystem and drivers for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMCameraEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMCameraEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 			.define(CSettingDefine.sdlSwiftPMCameraDriverCoreMediaEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMCameraDriverDummyEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMCameraDriverDummyEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableCamera = TraitDescription(
@@ -473,7 +473,7 @@ struct TraitDescription {
 		description: "Enable the default dialog subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMDialogEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMDialogEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableDialog = TraitDescription(
@@ -491,7 +491,7 @@ struct TraitDescription {
 		enabledTraits: [enableDefaultVideo.name],
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMGPUEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMGPUEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableGPU = TraitDescription(
@@ -516,7 +516,7 @@ struct TraitDescription {
 		enabledTraits: [enableDefaultJoystick.name],
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMHapticEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMHapticEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableHaptic = TraitDescription(
@@ -534,7 +534,7 @@ struct TraitDescription {
 		description: "Enable the default HIDAPI subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMHIDAPIEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMHIDAPIEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableHIDAPI = TraitDescription(
@@ -567,11 +567,11 @@ struct TraitDescription {
 		enabledTraits: [enableDefaultHIDAPI.name],
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMJoystickEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMJoystickDriverHIDAPIEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickDriverHIDAPIEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 			.define(CSettingDefine.sdlSwiftPMJoystickDriverIOKitEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMJoystickDriverMFIEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMJoystickDriverVirtualEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickDriverMFIEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMJoystickDriverVirtualEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableJoystick = TraitDescription(
@@ -601,7 +601,7 @@ struct TraitDescription {
 		name: "EnableJoystickDriverMFI",
 		description: "Enable the GameController (MFI) driver for the joystick subsystem (CMake: no separate option).",
 		enabledTraits: [enableJoystick.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickDriverMFIEnabled, .when(platforms: [.iOS, .macOS]))],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMJoystickDriverMFIEnabled, .when(platforms: [.iOS, .macOS, .tvOS]))],
 	)
 	static let enableJoystickDriverVirtual = TraitDescription(
 		name: "EnableJoystickDriverVirtual",
@@ -618,7 +618,7 @@ struct TraitDescription {
 		description: "Enable the default notification subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMNotificationEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMNotificationEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableNotification = TraitDescription(
@@ -635,7 +635,7 @@ struct TraitDescription {
 		description: "Enable the default power subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMPowerEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMPowerEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enablePower = TraitDescription(
@@ -653,9 +653,9 @@ struct TraitDescription {
 		enabledTraits: [enableDefaultGPU.name, enableDefaultVideo.name],
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMRenderEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMRenderGPUEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMRenderMetalEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMRenderEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMRenderGPUEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMRenderMetalEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableRender = TraitDescription(
@@ -674,13 +674,13 @@ struct TraitDescription {
 		name: "EnableRenderMetal",
 		description: "Enable the Metal driver for the render subsystem (CMake: SDL_RENDER_METAL=ON).",
 		enabledTraits: [enableRender.name, enableVideoMetal.name, enableVideoDriverCocoa.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderMetalEnabled, .when(platforms: [.iOS, .macOS]))]
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderMetalEnabled, .when(platforms: [.iOS, .macOS, .tvOS]))]
 	)
 	static let enableRenderVulkan = TraitDescription(
 		name: "EnableRenderVulkan",
 		description: "Enable the Vulkan driver for the render subsystem (CMake: SDL_RENDER_VULKAN=ON).",
 		enabledTraits: [enableRender.name, enableVideoVulkan.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderVulkanEnabled, .when(platforms: [.iOS, .macOS]))]
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMRenderVulkanEnabled, .when(platforms: [.iOS, .macOS, .tvOS]))]
 	)
 
 
@@ -691,7 +691,7 @@ struct TraitDescription {
 		description: "Enable the default sensor subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMSensorEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMSensorEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableSensor = TraitDescription(
@@ -708,7 +708,7 @@ struct TraitDescription {
 		description: "Enable the default tray subsystem for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMTrayEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMTrayEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 		]
 	)
 	static let enableTray = TraitDescription(
@@ -725,13 +725,13 @@ struct TraitDescription {
 		description: "Enable the default video subsystem and drivers for a platform.",
 		isDefault: true,
 		cSettingDefines: [
-			.define(CSettingDefine.sdlSwiftPMVideoEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 			.define(CSettingDefine.sdlSwiftPMVideoDriverCocoaEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMVideoDriverDummyEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMVideoDriverOffscreenEnabled, .when(platforms: [.iOS, .macOS])),
-			.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.iOS, .macOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoDriverDummyEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoDriverOffscreenEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.iOS, .macOS, .tvOS])),
 			.define(CSettingDefine.sdlSwiftPMVideoOpenGLEnabled, .when(platforms: [.macOS])),
-			.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.iOS])),
+			.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.iOS, .tvOS])),
 		]
 	)
 	static let enableVideo = TraitDescription(
@@ -761,7 +761,7 @@ struct TraitDescription {
 		name: "EnableVideoMetal",
 		description: "Enable Metal support for the video subsystem (CMake: SDL_METAL=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.iOS, .macOS]))],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoMetalEnabled, .when(platforms: [.iOS, .macOS, .tvOS]))],
 	)
 	static let enableVideoOpenGL = TraitDescription(
 		name: "EnableVideoOpenGL",
@@ -773,13 +773,13 @@ struct TraitDescription {
 		name: "EnableVideoOpenGLES",
 		description: "Enable OpenGL ES support for the video subsystem (CMake: SDL_OPENGLES=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.iOS, .macOS]))],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoOpenGLESEnabled, .when(platforms: [.iOS, .macOS, .tvOS]))],
 	)
 	static let enableVideoVulkan = TraitDescription(
 		name: "EnableVideoVulkan",
 		description: "Enable Vulkan support for the video subsystem (CMake: SDL_VULKAN=ON).",
 		enabledTraits: [enableVideo.name],
-		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled, .when(platforms: [.iOS, .macOS]))],
+		cSettingDefines: [.define(CSettingDefine.sdlSwiftPMVideoVulkanEnabled, .when(platforms: [.iOS, .macOS, .tvOS]))],
 	)
 
 
@@ -820,6 +820,7 @@ let package = Package(
 	platforms: [
 		.macOS(.v13),
 		.iOS(.v15),
+		.tvOS(.v15),
 	],
 	products: [
 		.library(name: "SimpleDirectMediaLayer", targets: ["SimpleDirectMediaLayer"]),
@@ -843,10 +844,9 @@ let package = Package(
 
 				// Platform Dependencies
 
-				.target(name: "apple", condition: .when(platforms: [.iOS, .macOS])),
 				.target(name: "iOS", condition: .when(platforms: [.iOS])),
 				.target(name: "macOS", condition: .when(platforms: [.macOS])),
-				.target(name: "posix", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .visionOS, .linux, .android])),
+				.target(name: "tvOS", condition: .when(platforms: [.tvOS])),
 
 
 				// Subsystem Dependencies
@@ -958,22 +958,10 @@ let package = Package(
 		// MARK: - Platform Targets
 
 		.sdlTarget(
-			name: "apple",
-			dependencies: [
-
-			],
-			sources: [
-				"src/filesystem/cocoa",
-				"src/locale/macos",
-			],
-			additionalLinkerSettings: [
-				.linkedFramework("Foundation"),
-			],
-		),
-
-		.sdlTarget(
 			name: "iOS",
 			dependencies: [
+				.target(name: "uikit"),
+
 				// Audio Subsystem Default Dependencies
 
 				.target(name: "audio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
@@ -1052,21 +1040,18 @@ let package = Package(
 				.target(name: "video", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
 				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
 				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
-				.target(name: "video_driver_uikit"),	// UIKit video driver is always linked to provide required symbols in main
+				.target(name: "video_driver_uikit", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
 			],
 			sources: [
-				"src/main/ios",
-				"src/misc/ios",
-			],
-			additionalLinkerSettings: [
-				.linkedFramework("QuartzCore"),
-				.linkedFramework("UIKit"),
+				"swift/Sources/iOS/src"
 			],
 		),
 
 		.sdlTarget(
 			name: "macOS",
 			dependencies: [
+				.target(name: "apple"),
+				.target(name: "posix"),
 
 				// Audio Subsystem Default Dependencies
 
@@ -1152,7 +1137,111 @@ let package = Package(
 				"src/misc/macos",
 			],
 			additionalLinkerSettings: [
-				.linkedFramework("CoreServices"),
+				.linkedFramework("CoreServices", .when(platforms: [.macOS])),
+			],
+		),
+
+		.sdlTarget(
+			name: "tvOS",
+			dependencies: [
+				.target(name: "uikit"),
+
+
+				// Audio Subsystem Default Dependencies
+
+				.target(name: "audio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_coreaudio", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultAudio.name])),
+
+
+				// Camera Subsystem Default Dependencies
+
+				.target(name: "camera", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+				.target(name: "camera_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultCamera.name])),
+
+
+				// Dialog Subsystem Default Dependencies
+
+				.target(name: "dialog", condition: .when(traits: [TraitDescription.enableDefaultDialog.name])),
+
+
+				// GPU Subsystem Default Dependencies
+
+				.target(name: "gpu", condition: .when(traits: [TraitDescription.enableDefaultGPU.name])),
+				.target(name: "gpu_metal", condition: .when(traits: [TraitDescription.enableDefaultGPU.name])),
+
+
+				// Haptic Subsystem Default Dependencies
+
+				.target(name: "haptic", condition: .when(traits: [TraitDescription.enableDefaultHaptic.name])),
+
+
+				// HIDAPI Subsystem Default Dependencies
+
+				.target(name: "hidapi", condition: .when(traits: [TraitDescription.enableDefaultHIDAPI.name])),
+
+
+				// Joystick Subsystem Default Dependencies
+
+				.target(name: "joystick", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+				.target(name: "joystick_driver_hidapi", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+				.target(name: "joystick_driver_mfi"),	// The tvOS UIKit view needs SDL_AppleTVRemoteOpenedAsJoystick even when joystick is disabled
+				.target(name: "joystick_driver_virtual", condition: .when(traits: [TraitDescription.enableDefaultJoystick.name])),
+
+
+				// Notification Subsystem Default Dependencies
+
+				.target(name: "notification", condition: .when(traits: [TraitDescription.enableDefaultNotification.name])),
+
+
+				// Power Subsystem Default Dependencies
+
+				.target(name: "power", condition: .when(traits: [TraitDescription.enableDefaultPower.name])),
+
+
+				// Render Subsystem Default Dependencies
+
+				.target(name: "render", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_gpu", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_metal", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_opengles", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+				.target(name: "render_opengles2", condition: .when(traits: [TraitDescription.enableDefaultRender.name])),
+
+
+				// Sensor Subsystem Default Dependencies
+
+				.target(name: "sensor", condition: .when(traits: [TraitDescription.enableDefaultSensor.name])),
+
+
+				// Tray Subsystem Default Dependencies
+
+				.target(name: "tray", condition: .when(traits: [TraitDescription.enableDefaultTray.name])),
+
+
+				// Video Subsystem Default Dependencies
+
+				.target(name: "video", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
+				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
+				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
+				.target(name: "video_driver_uikit", condition: .when(traits: [TraitDescription.enableDefaultVideo.name])),
+			],
+			sources: [
+				"swift/Sources/tvOS/src"
+			],
+		),
+
+
+		// MARK: - Platform Dependency Targets
+
+		.sdlTarget(
+			name: "apple",
+			sources: [
+				"src/filesystem/cocoa",
+				"src/locale/macos",
+			],
+			additionalLinkerSettings: [
+				.linkedFramework("Foundation", .when(platforms: [.iOS, .macOS, .tvOS])),
 			],
 		),
 
@@ -1169,6 +1258,25 @@ let package = Package(
 			],
 		),
 
+		.sdlTarget(
+			name: "uikit",
+			dependencies: [
+				.target(name: "apple"),
+				.target(name: "posix"),
+
+				// UIKit video driver is always linked to provide required symbols in main
+				.target(name: "video_driver_uikit"),
+			],
+			sources: [
+				"src/main/ios",
+				"src/misc/ios",
+			],
+			additionalLinkerSettings: [
+				.linkedFramework("QuartzCore", .when(platforms: [.iOS, .tvOS])),
+				.linkedFramework("UIKit", .when(platforms: [.iOS, .tvOS])),
+			],
+		),
+
 
 		// MARK: - Subsystem Targets
 
@@ -1177,7 +1285,7 @@ let package = Package(
 		.sdlTarget(
 			name: "audio",
 			dependencies: [
-				.target(name: "audio_driver_coreaudio", condition: .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableAudioDriverCoreAudio.name])),
+				.target(name: "audio_driver_coreaudio", condition: .when(platforms: [.iOS, .macOS, .tvOS], traits: [TraitDescription.enableAudioDriverCoreAudio.name])),
 				.target(name: "audio_driver_disk", condition: .when(traits: [TraitDescription.enableAudioDriverDisk.name])),
 				.target(name: "audio_driver_dummy", condition: .when(traits: [TraitDescription.enableAudioDriverDummy.name])),
 			],
@@ -1187,8 +1295,8 @@ let package = Package(
 			name: "audio_driver_coreaudio",
 			sources: ["src/audio/coreaudio"],
 			additionalLinkerSettings: [
-				.linkedFramework("AudioToolbox", .when(platforms: [.iOS, .macOS])),
-				.linkedFramework("AVFoundation", .when(platforms: [.iOS])),
+				.linkedFramework("AudioToolbox", .when(platforms: [.iOS, .macOS, .tvOS])),
+				.linkedFramework("AVFoundation", .when(platforms: [.iOS, .tvOS])),
 				.linkedFramework("CoreAudio", .when(platforms: [.macOS]))
 			]
 		),
@@ -1242,8 +1350,8 @@ let package = Package(
 		.sdlTarget(
 			name: "gpu",
 			dependencies: [
-				.target(name: "gpu_metal", condition: .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableVideoMetal.name, TraitDescription.enableDefaultVideo.name])),
-				.target(name: "gpu_vulkan", condition: .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableVideoVulkan.name])),
+				.target(name: "gpu_metal", condition: .when(platforms: [.iOS, .macOS, .tvOS], traits: [TraitDescription.enableVideoMetal.name, TraitDescription.enableDefaultVideo.name])),
+				.target(name: "gpu_vulkan", condition: .when(platforms: [.iOS, .macOS, .tvOS], traits: [TraitDescription.enableVideoVulkan.name])),
 			],
 			sources: ["swift/Sources/gpu/src"],
 		),
@@ -1252,8 +1360,8 @@ let package = Package(
 			additionalExcludes: contentsOfDirectory(path: "src/gpu/metal", files: true, withExtensions: ["sh", "metal"]),
 			sources: ["src/gpu/metal"],
 			additionalLinkerSettings: [
-				.linkedFramework("CoreGraphics", .when(platforms: [.iOS, .macOS])),
-				.linkedFramework("Metal", .when(platforms: [.iOS, .macOS]))
+				.linkedFramework("CoreGraphics", .when(platforms: [.iOS, .macOS, .tvOS])),
+				.linkedFramework("Metal", .when(platforms: [.iOS, .macOS, .tvOS]))
 			]
 		),
 		.sdlTarget(name: "gpu_vulkan", sources: ["src/gpu/vulkan"]),
@@ -1284,7 +1392,7 @@ let package = Package(
 		.sdlTarget(
 			name: "hidapi",
 			dependencies: [
-				.target(name: "hidapi_ios", condition: .when(platforms: [.iOS]))
+				.target(name: "hidapi_ios", condition: .when(platforms: [.iOS, .tvOS]))
 			],
 			sources: ["swift/Sources/hidapi/src"],
 			additionalLinkerSettings: [
@@ -1295,7 +1403,7 @@ let package = Package(
 			name: "hidapi_ios",
 			sources: ["src/hidapi/ios"],
 			additionalLinkerSettings: [
-				.linkedFramework("CoreBluetooth", .when(platforms: [.iOS])),
+				.linkedFramework("CoreBluetooth", .when(platforms: [.iOS, .tvOS])),
 			]
 		),
 
@@ -1306,7 +1414,7 @@ let package = Package(
 			dependencies: [
 				.target(name: "joystick_driver_hidapi", condition: .when(traits: [TraitDescription.enableJoystickDriverHIDAPI.name])),
 				.target(name: "joystick_driver_iokit", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableJoystickDriverIOKit.name])),
-				.target(name: "joystick_driver_mfi", condition: .when(platforms: [.iOS, .macOS])),	// Unfortunately, the core always needs this when the joystick is enabled.
+				.target(name: "joystick_driver_mfi", condition: .when(platforms: [.iOS, .macOS, .tvOS])),	// Unfortunately, the core always needs this when the joystick is enabled.
 				.target(name: "joystick_driver_virtual", condition: .when(traits: [TraitDescription.enableJoystickDriverVirtual.name])),
 			],
 			sources: ["swift/Sources/joystick/src"],
@@ -1331,8 +1439,8 @@ let package = Package(
 			name: "joystick_driver_mfi",
 			sources: ["src/joystick/apple"],
 			additionalLinkerSettings: [
-				.linkedFramework("CoreHaptics", .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableJoystickDriverMFI.name, TraitDescription.enableDefaultJoystick.name])),
-				.linkedFramework("GameController", .when(platforms: [.iOS, .macOS])),
+				.linkedFramework("CoreHaptics", .when(platforms: [.iOS, .macOS, .tvOS], traits: [TraitDescription.enableJoystickDriverMFI.name, TraitDescription.enableDefaultJoystick.name])),
+				.linkedFramework("GameController", .when(platforms: [.iOS, .macOS, .tvOS])),
 				.linkedFramework("IOKit", .when(platforms: [.macOS], traits: [TraitDescription.enableJoystickDriverMFI.name, TraitDescription.enableDefaultJoystick.name])),
 			]
 		),
@@ -1344,7 +1452,7 @@ let package = Package(
 		.sdlTarget(
 			name: "notification",
 			dependencies: [
-				.target(name: "notification_cocoa", condition: .when(platforms: [.iOS, .macOS])),
+				.target(name: "notification_cocoa", condition: .when(platforms: [.iOS, .macOS, .tvOS])),
 			],
 			sources: ["swift/Sources/notification/src"],
 		),
@@ -1364,7 +1472,7 @@ let package = Package(
 			name: "power",
 			dependencies: [
 				.target(name: "power_macos", condition: .when(platforms: [.macOS])),
-				.target(name: "power_uikit", condition: .when(platforms: [.iOS])),
+				.target(name: "power_uikit", condition: .when(platforms: [.iOS, .tvOS])),
 			],
 			sources: ["swift/Sources/power/src"],
 		),
@@ -1387,12 +1495,12 @@ let package = Package(
 			name: "render",
 			dependencies: [
 				.target(name: "render_gpu", condition: .when(traits: [TraitDescription.enableRenderGPU.name])),
-				.target(name: "render_metal", condition: .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableRenderMetal.name])),
+				.target(name: "render_metal", condition: .when(platforms: [.iOS, .macOS, .tvOS], traits: [TraitDescription.enableRenderMetal.name])),
 				.target(name: "render_opengl", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGL.name, TraitDescription.enableDefaultVideo.name])),
-				.target(name: "render_opengles", condition: .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
-				.target(name: "render_opengles2_ios", condition: .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.target(name: "render_opengles", condition: .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.target(name: "render_opengles2_uikit", condition: .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
 				.target(name: "render_opengles2_mac", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoOpenGLES.name])),
-				.target(name: "render_vulkan", condition: .when(platforms: [.iOS, .macOS], traits: [TraitDescription.enableRenderVulkan.name])),
+				.target(name: "render_vulkan", condition: .when(platforms: [.iOS, .macOS, .tvOS], traits: [TraitDescription.enableRenderVulkan.name])),
 			],
 			sources: ["swift/Sources/render/src"],
 		),
@@ -1403,8 +1511,8 @@ let package = Package(
 			sources: ["src/render/metal"],
 			additionalLinkerSettings: [
 				.linkedFramework("CoreGraphics", .when(platforms: [.iOS, .macOS])),
-				.linkedFramework("CoreVideo", .when(platforms: [.iOS, .macOS])),
-				.linkedFramework("Metal", .when(platforms: [.iOS, .macOS])),
+				.linkedFramework("CoreVideo", .when(platforms: [.iOS, .macOS, .tvOS])),
+				.linkedFramework("Metal", .when(platforms: [.iOS, .macOS, .tvOS])),
 			]
 		),
 		.sdlTarget(name: "render_opengl", sources: ["src/render/opengl"]),
@@ -1412,23 +1520,23 @@ let package = Package(
 			name: "render_opengles",
 			sources: ["src/render/opengles"],
 			additionalCSettings: [
-				.define("GLES_SILENCE_DEPRECATION", .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.define("GLES_SILENCE_DEPRECATION", .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
 			],
 			additionalLinkerSettings: [
-				.linkedFramework("OpenGLES", .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.linkedFramework("OpenGLES", .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
 			],
 		),
 		.sdlTarget(
 			name: "render_opengles2",
 			sources: ["src/render/opengles2"],
 			additionalCSettings: [
-				.define("GLES_SILENCE_DEPRECATION", .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.define("GLES_SILENCE_DEPRECATION", .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
 			],
 			additionalLinkerSettings: [
-				.linkedFramework("OpenGLES", .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.linkedFramework("OpenGLES", .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
 			],
 		),
-		.sdlTarget(name: "render_opengles2_ios", dependencies: ["render_opengles2"], sources: ["swift/Sources/render_opengles2_ios/src"]),
+		.sdlTarget(name: "render_opengles2_uikit", dependencies: ["render_opengles2"], sources: ["swift/Sources/render_opengles2_uikit/src"]),
 		.sdlTarget(name: "render_opengles2_mac", dependencies: ["render_opengles2"], sources: ["swift/Sources/render_opengles2_mac/src"]),
 		.sdlTarget(name: "render_vulkan", additionalExcludes: contentsOfDirectory(path: "src/render/vulkan", files: true, withExtensions: ["bat", "hlsl", "hlsli"]), sources: ["src/render/vulkan"]),
 
@@ -1477,7 +1585,7 @@ let package = Package(
 				.target(name: "video_driver_cocoa", condition: .when(platforms: [.macOS], traits: [TraitDescription.enableVideoDriverCocoa.name])),
 				.target(name: "video_driver_dummy", condition: .when(traits: [TraitDescription.enableVideoDriverDummy.name])),
 				.target(name: "video_driver_offscreen", condition: .when(traits: [TraitDescription.enableVideoDriverOffscreen.name])),
-				.target(name: "video_driver_uikit", condition: .when(platforms: [.iOS])),
+				.target(name: "video_driver_uikit", condition: .when(platforms: [.iOS, .tvOS])),
 			],
 			sources: ["swift/Sources/video/src"],
 		),
@@ -1501,12 +1609,12 @@ let package = Package(
 			additionalExcludes: contentsOfDirectory(path: "src/video/uikit", files: true, withExtensions: ["swift"]),
 			sources: ["src/video/uikit"],
 			additionalCSettings: [
-				.define("GLES_SILENCE_DEPRECATION", .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.define("GLES_SILENCE_DEPRECATION", .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
 			],
 			additionalLinkerSettings: [
-				.linkedFramework("CoreGraphics", .when(platforms: [.iOS])),
-				.linkedFramework("GameController", .when(platforms: [.iOS])),
-				.linkedFramework("OpenGLES", .when(platforms: [.iOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
+				.linkedFramework("CoreGraphics", .when(platforms: [.iOS, .tvOS])),
+				.linkedFramework("GameController", .when(platforms: [.iOS, .tvOS])),
+				.linkedFramework("OpenGLES", .when(platforms: [.iOS, .tvOS], traits: [TraitDescription.enableVideoOpenGLES.name, TraitDescription.enableDefaultVideo.name])),
 			]
 		),
 
