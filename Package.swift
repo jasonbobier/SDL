@@ -818,7 +818,7 @@ let buildDependentCSettings: [CSetting] = [
 let package = Package(
 	name: "SimpleDirectMediaLayer",
 	platforms: [
-		.macOS(.v12),
+		.macOS(.v13),
 		.iOS(.v15),
 	],
 	products: [
