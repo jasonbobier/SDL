@@ -19,6 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+#if canImport(Subprocess)
+
 import Testing
 import Subprocess
 import System
@@ -250,3 +252,5 @@ enum SDLTestingError: LocalizedError, CustomStringConvertible {
 		}
 	}
 }
+
+#endif

@@ -36,7 +36,7 @@ public func getBundleResourceDirectory(bundle: Bundle, buffer: UnsafeMutablePoin
 		return false
 	}
 
-	let path = url.path(percentEncoded: false).utf8CString
+	let path = url.path.utf8CString
 
 	guard path.count <= size else {
 		return false
@@ -54,7 +54,7 @@ public func getBundleResource(bundle: Bundle, name: UnsafePointer<CChar>?, buffe
 		return false
 	}
 
-	let path = url.path(percentEncoded: false).utf8CString
+	let path = url.path.utf8CString
 
 	guard path.count <= size else {
 		return false

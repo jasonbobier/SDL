@@ -818,7 +818,7 @@ let buildDependentCSettings: [CSetting] = [
 let package = Package(
 	name: "SimpleDirectMediaLayer",
 	platforms: [
-		.macOS(.v13),
+		.macOS(.v12),
 		.iOS(.v15),
 	],
 	products: [
@@ -1522,7 +1522,7 @@ let package = Package(
 			name: "SimpleDirectMediaLayerTests",
 			dependencies: [
 				.target(name: "SimpleDirectMediaLayer"),
-				.product(name: "Subprocess", package: "swift-subprocess"),
+				.product(name: "Subprocess", package: "swift-subprocess", condition: .when(platforms: [.macOS])),
 				.product(name: "SystemPackage", package: "swift-system"),
 			],
 			path: "swift/Tests/SimpleDirectMediaLayerTests",
@@ -1636,7 +1636,7 @@ let package = Package(
 			additionalCSettings: [.define("HAVE_OPENGL", .when(platforms: [.macOS, .linux, .windows]))],
 			additionalLinkerSettings: [.linkedFramework("OpenGL", .when(platforms: [.macOS]))]
 		),
-		.sdlTestExecutable(name: "testgles"),
+		.sdlTestExecutable(name: "testgles", additionalCSettings: [.define("GLES_SILENCE_DEPRECATION")]),
 		.sdlTestExecutable(name: "testgles2"),
 		.sdlTestExecutable(name: "testgpu_simple_clear"),
 		.sdlTestExecutable(name: "testgpu_spinning_cube"),
